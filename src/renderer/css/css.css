@@ -19,6 +19,23 @@ body {
     justify-content: center;
 }
 
+#system_right {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    -webkit-app-region: no-drag;
+}
+#system_right > div {
+    position: relative;
+    width: 16px;
+    height: 16px;
+}
+#system_right > div > .icon {
+    width: 16px;
+    height: 16px;
+}
+
 #buttoms {
     display: flex;
     flex-direction: row;

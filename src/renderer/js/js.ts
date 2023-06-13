@@ -1,5 +1,9 @@
 const { ipcRenderer } = require("electron") as typeof import("electron");
 
+import mini_svg from "../assets/icons/minimize.svg";
+import max_svg from "../assets/icons/maximize.svg";
+import unmax_svg from "../assets/icons/unmaximize.svg";
+import close_svg from "../assets/icons/close.svg";
 import back_svg from "../assets/icons/left.svg";
 import forward_svg from "../assets/icons/right.svg";
 import reload_svg from "../assets/icons/reload.svg";
@@ -7,6 +11,39 @@ import reload_svg from "../assets/icons/reload.svg";
 function icon(src: string) {
     return `<img src="${src}" class="icon">`;
 }
+
+let w_mini = document.createElement("div");
+let w_max = document.createElement("div");
+let w_close = document.createElement("div");
+
+let system_el = document.getElementById("system_right");
+
+w_mini.innerHTML = icon(mini_svg);
+w_max.innerHTML = icon(max_svg);
+w_close.innerHTML = icon(close_svg);
+w_mini.onclick = () => {
+    ipcRenderer.send("win", "mini");
+};
+w_max.onclick = () => {
+    ipcRenderer.send("win", "max");
+};
+w_close.onclick = () => {
+    ipcRenderer.send("win", "close");
+};
+
+system_el.append(w_mini, w_max, w_close);
+
+ipcRenderer.on("win", (e, a) => {
+    switch (a) {
+        case "max":
+            w_max.innerHTML = icon(unmax_svg);
+            break;
+        case "unmax":
+            w_max.innerHTML = icon(max_svg);
+            break;
+    }
+});
+
 let buttons = document.getElementById("buttoms");
 let url_el = document.getElementById("url");
 

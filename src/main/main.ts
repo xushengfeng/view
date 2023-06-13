@@ -541,6 +541,13 @@ async function create_main_window() {
         }, 0);
     });
 
+    main_window.on("maximize", () => {
+        chrome.webContents.send("win", "max");
+    });
+    main_window.on("unmaximize", () => {
+        chrome.webContents.send("win", "unmax");
+    });
+
     let chrome = new BrowserView({
         webPreferences: {
             nodeIntegration: true,
@@ -564,6 +571,25 @@ function main_edit(window: BrowserWindow, m: string) {
 var search_window_l: { [n: number]: BrowserView } = {};
 ipcMain.on("open_url", (event, window_name, url) => {
     create_browser(window_name, url);
+});
+
+ipcMain.on("win", (e, type) => {
+    let main_window = BrowserWindow.fromWebContents(e.sender);
+    switch (type) {
+        case "mini":
+            main_window.minimize();
+            break;
+        case "max":
+            if (main_window.isMaximized()) {
+                main_window.unmaximize();
+            } else {
+                main_window.maximize();
+            }
+            break;
+        case "close":
+            main_window.close();
+            break;
+    }
 });
 
 type tree = {
