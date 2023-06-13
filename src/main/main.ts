@@ -598,21 +598,21 @@ async function create_browser(window_name: number, url: string) {
         return { action: "deny" };
     });
     if (dev) search_view.webContents.openDevTools();
-    if (!main_window.isDestroyed()) main_window.webContents.send("url", win_name, view, "new", url);
+    if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "new", url);
     search_view.webContents.on("page-title-updated", (event, title) => {
-        if (!main_window.isDestroyed()) main_window.webContents.send("url", win_name, view, "title", title);
+        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "title", title);
     });
     search_view.webContents.on("page-favicon-updated", (event, favlogo) => {
-        if (!main_window.isDestroyed()) main_window.webContents.send("url", win_name, view, "icon", favlogo);
+        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "icon", favlogo);
     });
     search_view.webContents.on("did-navigate", (event, url) => {
-        if (!main_window.isDestroyed()) main_window.webContents.send("url", win_name, view, "url", url);
+        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "url", url);
     });
     search_view.webContents.on("did-start-loading", () => {
-        if (!main_window.isDestroyed()) main_window.webContents.send("url", win_name, view, "load", true);
+        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "load", true);
     });
     search_view.webContents.on("did-stop-loading", () => {
-        if (!main_window.isDestroyed()) main_window.webContents.send("url", win_name, view, "load", false);
+        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "load", false);
     });
     search_view.webContents.on("did-fail-load", (event, err_code, err_des) => {
         renderer_path(search_view.webContents, "browser_bg.html", {
@@ -673,6 +673,9 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
             break;
         case "reload":
             search_window.webContents.reload();
+            break;
+        case "change":
+            search_window.webContents.loadURL(arg2);
             break;
         case "home":
             min_views(main_window);

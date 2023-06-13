@@ -8,6 +8,7 @@ function icon(src: string) {
     return `<img src="${src}" class="icon">`;
 }
 let buttons = document.getElementById("buttoms");
+let url_el = document.getElementById("url");
 
 let b_back = document.createElement("div");
 b_back.innerHTML = icon(back_svg);
@@ -28,3 +29,20 @@ b_reload.onclick = () => {
 };
 
 buttons.append(b_back, b_forward, b_reload);
+
+function set_url(url: string) {
+    let x = new URL(url);
+    let l = url.split(x.hostname);
+    let hostl = x.hostname.split(".");
+    let h = "";
+    if (hostl.length == 3) {
+        l[0] += hostl[0];
+        h = `${hostl[1]}.${hostl[2]}`;
+    } else {
+        h = x.hostname;
+    }
+    let m = document.createElement("span");
+    m.innerText = h;
+    url_el.innerHTML = "";
+    url_el.append(l[0], m, l[1]);
+}

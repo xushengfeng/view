@@ -1,3 +1,8 @@
+:root {
+    --text-color: #000;
+    --text-color1: #0007;
+}
+
 html,
 body {
     margin: 0;
@@ -39,6 +44,10 @@ body {
 #url {
     display: inline-block;
     width: 400px;
+    color: var(--text-color1);
+}
+#url > span {
+    color: var(--text-color);
 }
 
 #url_bar > div {
