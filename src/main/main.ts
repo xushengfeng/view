@@ -19,7 +19,7 @@ import {
     session,
 } from "electron";
 import { Buffer } from "buffer";
-const Store = require("electron-store");
+const Store = require("electron-store") as typeof import("electron-store");
 import * as path from "path";
 const run_path = path.join(path.resolve(__dirname, ""), "../../");
 import { exec } from "child_process";
@@ -99,6 +99,7 @@ app.whenReady().then(() => {
     // tmp目录
     if (!fs.existsSync(os.tmpdir() + "/eSearch")) fs.mkdir(os.tmpdir() + "/eSearch", () => {});
 
+    // @ts-ignore
     nativeTheme.themeSource = store.get("全局.深色模式");
 
     // 菜单栏设置
@@ -565,6 +566,23 @@ ipcMain.on("open_url", (event, window_name, url) => {
     create_browser(window_name, url);
 });
 
+type tree = {
+    [id: number]: {
+        url: string;
+        title: string;
+        logo: string;
+        next?: { new: boolean; id: number };
+    };
+};
+
+var tree_text_store = new Store({ name: "text" });
+let tree_store = new Store({ name: "tree" });
+let tree = (tree_store.get("tree") || {}) as tree;
+
+if (!fs.existsSync(path.join(app.getPath("userData"), "capture"))) {
+    fs.mkdirSync(path.join(app.getPath("userData"), "capture"));
+}
+
 /** 创建浏览器页面 */
 async function create_browser(window_name: number, url: string) {
     if (!window_name) window_name = await create_main_window();
@@ -577,14 +595,11 @@ async function create_browser(window_name: number, url: string) {
     if (main_window.isDestroyed()) return;
     min_views(main_window);
     var view = new Date().getTime();
-    let security = true;
-    for (let i of store.get("nocors")) {
-        if (url.includes(i)) {
-            security = false;
-            break;
-        }
-    }
-    var search_view = (search_window_l[view] = new BrowserView({ webPreferences: { webSecurity: security } }));
+
+    let tree_id = view;
+    tree_store.set(String(tree_id), { logo: "", url: url, title: "" });
+
+    var search_view = (search_window_l[view] = new BrowserView());
     await search_view.webContents.session.setProxy(store.get("代理"));
     main_window_l[window_name].addBrowserView(search_view);
     main_window.setTopBrowserView(chrome);
@@ -594,19 +609,30 @@ async function create_browser(window_name: number, url: string) {
     main_window.setContentSize(w, h + 1);
     main_window.setContentSize(w, h);
     search_view.webContents.setWindowOpenHandler(({ url }) => {
-        create_browser(window_name, url);
+        create_browser(window_name, url).then((id) => {
+            tree_store.set(`${tree_id}.next`, { id, new: true } as tree[0]["next"]);
+        });
         return { action: "deny" };
     });
     if (dev) search_view.webContents.openDevTools();
     if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "new", url);
     search_view.webContents.on("page-title-updated", (event, title) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "title", title);
+        tree_store.set(`${tree_id}.title`, title);
     });
     search_view.webContents.on("page-favicon-updated", (event, favlogo) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "icon", favlogo);
+        tree_store.set(`${tree_id}.logo`, favlogo[0]);
     });
     search_view.webContents.on("did-navigate", (event, url) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "url", url);
+        let new_id = new Date().getTime();
+        tree_store.set(`${tree_id}.next`, { id: new_id, new: false } as tree[0]["next"]);
+        tree_id = new_id;
+    });
+    search_view.webContents.on("did-navigate-in-page", (event, url, isMainFrame) => {
+        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "url", url);
+        if (isMainFrame) tree_store.set(`${tree_id}.url`, url);
     });
     search_view.webContents.on("did-start-loading", () => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "load", true);
@@ -619,6 +645,28 @@ async function create_browser(window_name: number, url: string) {
             query: { type: "did-fail-load", err_code: String(err_code), err_des },
         });
         if (dev) search_view.webContents.openDevTools();
+    });
+    search_view.webContents.on("did-finish-load", async () => {
+        let image = await search_view.webContents.capturePage();
+        fs.writeFile(
+            path.join(app.getPath("userData"), "capture", tree_id + ".jpg"),
+            image
+                .resize({
+                    height: Math.floor(image.getSize().height / 2),
+                    width: Math.floor(image.getSize().width / 2),
+                    quality: "good",
+                })
+                .toJPEG(7),
+            (err) => {
+                if (err) return;
+                image = null;
+            }
+        );
+
+        tree_text_store.set(
+            String(tree_id),
+            await search_view.webContents.executeJavaScript("document.body.innerText")
+        );
     });
     search_view.webContents.on("render-process-gone", () => {
         renderer_path(search_view.webContents, "browser_bg.html", { query: { type: "render-process-gone" } });
@@ -635,6 +683,8 @@ async function create_browser(window_name: number, url: string) {
         renderer_path(search_view.webContents, "browser_bg.html", { query: { type: "certificate-error" } });
         if (dev) search_view.webContents.openDevTools();
     });
+
+    return tree_id;
 }
 /**
  * 标签页事件
