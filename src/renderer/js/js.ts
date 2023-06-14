@@ -12,6 +12,9 @@ function icon(src: string) {
     return `<img src="${src}" class="icon">`;
 }
 
+/** browserwindow id */
+let pid = NaN;
+
 let w_mini = document.createElement("div");
 let w_max = document.createElement("div");
 let w_close = document.createElement("div");
@@ -33,13 +36,16 @@ w_close.onclick = () => {
 
 system_el.append(w_mini, w_max, w_close);
 
-ipcRenderer.on("win", (e, a) => {
+ipcRenderer.on("win", (e, a, arg) => {
     switch (a) {
         case "max":
             w_max.innerHTML = icon(unmax_svg);
             break;
         case "unmax":
             w_max.innerHTML = icon(max_svg);
+            break;
+        case "id":
+            pid = arg;
             break;
     }
 });
@@ -83,3 +89,22 @@ function set_url(url: string) {
     url_el.innerHTML = "";
     url_el.append(l[0], m, l[1]);
 }
+
+let wins = [];
+let now_win = NaN;
+
+ipcRenderer.on("url", (e, view, type, arg) => {
+    switch (type) {
+        case "new":
+            now_win = view;
+            wins.push(view);
+            break;
+        case "url":
+            if (view == now_win) {
+                set_url(arg);
+            }
+            break;
+    }
+});
+
+ipcRenderer.send("tab_view", null, "add", "https://www.bing.com");

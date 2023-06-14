@@ -407,7 +407,7 @@ app.whenReady().then(() => {
     const menu = Menu.buildFromTemplate(template);
     Menu.setApplicationMenu(menu);
 
-    create_browser(null, "https://www.bing.com");
+    create_main_window();
 });
 
 app.on("will-quit", () => {
@@ -561,6 +561,8 @@ async function create_main_window() {
     chrome.setBounds({ x: 0, y: 0, width: main_window.getContentSize()[0], height: 24 });
     main_to_chrome[window_name] = chrome;
 
+    chrome.webContents.send("win", "id", window_name);
+
     return window_name;
 }
 
@@ -611,10 +613,6 @@ if (!fs.existsSync(path.join(app.getPath("userData"), "capture"))) {
 
 /** 创建浏览器页面 */
 async function create_browser(window_name: number, url: string) {
-    if (!window_name) window_name = await create_main_window();
-
-    var win_name = new Date().getTime();
-
     let main_window = main_window_l[window_name];
     let chrome = main_to_chrome[window_name];
 
@@ -643,17 +641,17 @@ async function create_browser(window_name: number, url: string) {
         return { action: "deny" };
     });
     if (dev) search_view.webContents.openDevTools();
-    if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "new", url);
+    if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view, "new", url);
     search_view.webContents.on("page-title-updated", (event, title) => {
-        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "title", title);
+        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view, "title", title);
         tree_store.set(`${tree_id}.title`, title);
     });
     search_view.webContents.on("page-favicon-updated", (event, favlogo) => {
-        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "icon", favlogo);
+        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view, "icon", favlogo);
         tree_store.set(`${tree_id}.logo`, favlogo[0]);
     });
     search_view.webContents.on("did-navigate", (event, url) => {
-        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "url", url);
+        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view, "url", url);
         let new_id = new Date().getTime();
         let l = (tree_store.get(`${tree_id}.next`) as tree[0]["next"]) || [];
         l.push({ id: new_id, new: false });
@@ -661,14 +659,14 @@ async function create_browser(window_name: number, url: string) {
         tree_id = new_id;
     });
     search_view.webContents.on("did-navigate-in-page", (event, url, isMainFrame) => {
-        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "url", url);
+        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view, "url", url);
         if (isMainFrame) tree_store.set(`${tree_id}.url`, url);
     });
     search_view.webContents.on("did-start-loading", () => {
-        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "load", true);
+        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view, "load", true);
     });
     search_view.webContents.on("did-stop-loading", () => {
-        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "load", false);
+        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view, "load", false);
     });
     search_view.webContents.on("did-fail-load", (event, err_code, err_des) => {
         renderer_path(search_view.webContents, "browser_bg.html", {
@@ -724,6 +722,8 @@ function view_events(w: BrowserWindow, arg: string) {
 }
 
 ipcMain.on("tab_view", (e, id, arg, arg2) => {
+    console.log(arg);
+
     let main_window = BrowserWindow.fromWebContents(e.sender);
     let search_window = search_window_l[id];
     switch (arg) {
@@ -753,6 +753,13 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
             break;
         case "reload":
             search_window.webContents.reload();
+            break;
+        case "add":
+            for (let i in main_window_l) {
+                if (main_window_l[i] == main_window) {
+                    create_browser(Number(i), arg2);
+                }
+            }
             break;
         case "change":
             search_window.webContents.loadURL(arg2);
