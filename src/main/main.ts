@@ -597,7 +597,7 @@ type tree = {
         url: string;
         title: string;
         logo: string;
-        next?: { new: boolean; id: number };
+        next?: { new: boolean; id: number }[];
     };
 };
 
@@ -636,7 +636,9 @@ async function create_browser(window_name: number, url: string) {
     main_window.setContentSize(w, h);
     search_view.webContents.setWindowOpenHandler(({ url }) => {
         create_browser(window_name, url).then((id) => {
-            tree_store.set(`${tree_id}.next`, { id, new: true } as tree[0]["next"]);
+            let l = (tree_store.get(`${tree_id}.next`) as tree[0]["next"]) || [];
+            l.push({ id, new: true });
+            tree_store.set(`${tree_id}.next`, l);
         });
         return { action: "deny" };
     });
@@ -653,7 +655,9 @@ async function create_browser(window_name: number, url: string) {
     search_view.webContents.on("did-navigate", (event, url) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", win_name, view, "url", url);
         let new_id = new Date().getTime();
-        tree_store.set(`${tree_id}.next`, { id: new_id, new: false } as tree[0]["next"]);
+        let l = (tree_store.get(`${tree_id}.next`) as tree[0]["next"]) || [];
+        l.push({ id: new_id, new: false });
+        tree_store.set(`${tree_id}.next`, l);
         tree_id = new_id;
     });
     search_view.webContents.on("did-navigate-in-page", (event, url, isMainFrame) => {
