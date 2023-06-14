@@ -8,7 +8,6 @@ body {
     margin: 0;
     width: 100%;
     height: 100%;
-    -webkit-app-region: drag;
 }
 
 #bar {
@@ -17,6 +16,7 @@ body {
     height: 24px;
     align-items: center;
     justify-content: center;
+    -webkit-app-region: drag;
 }
 
 #system_right {
@@ -62,9 +62,22 @@ body {
     display: inline-block;
     width: 400px;
     color: var(--text-color1);
+    white-space: pre;
+    overflow: scroll;
 }
+
+#url::-webkit-scrollbar {
+    display: none;
+}
+
 #url > span {
     color: var(--text-color);
+}
+#url > input {
+    appearance: none;
+    border: none;
+    width: 100%;
+    font-size: 1rem;
 }
 
 #url_bar > div {
@@ -74,6 +87,24 @@ body {
 }
 
 #url_bar > div > .icon {
+    width: 16px;
+    height: 16px;
+}
+
+#search_list {
+    -webkit-app-region: no-drag;
+}
+#search_list > div {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+#search_list > div > div:has(.icon) {
+    position: relative;
+    width: 16px;
+    height: 16px;
+}
+#search_list > div > div > .icon {
     width: 16px;
     height: 16px;
 }

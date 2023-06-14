@@ -1,15 +1,22 @@
 const { ipcRenderer } = require("electron") as typeof import("electron");
 
-import mini_svg from "../assets/icons/minimize.svg";
-import max_svg from "../assets/icons/maximize.svg";
-import unmax_svg from "../assets/icons/unmaximize.svg";
+import minimize_svg from "../assets/icons/minimize.svg";
+import maximize_svg from "../assets/icons/maximize.svg";
+import unmaximize_svg from "../assets/icons/unmaximize.svg";
 import close_svg from "../assets/icons/close.svg";
-import back_svg from "../assets/icons/left.svg";
-import forward_svg from "../assets/icons/right.svg";
+import left_svg from "../assets/icons/left.svg";
+import right_svg from "../assets/icons/right.svg";
 import reload_svg from "../assets/icons/reload.svg";
+import browser_svg from "../assets/icons/browser.svg";
+import search_svg from "../assets/icons/search.svg";
+import add_svg from "../assets/icons/add.svg";
 
 function icon(src: string) {
     return `<img src="${src}" class="icon">`;
+}
+
+function create_div() {
+    return document.createElement("div");
 }
 
 /** browserwindow id */
@@ -21,17 +28,17 @@ let w_close = document.createElement("div");
 
 let system_el = document.getElementById("system_right");
 
-w_mini.innerHTML = icon(mini_svg);
-w_max.innerHTML = icon(max_svg);
+w_mini.innerHTML = icon(minimize_svg);
+w_max.innerHTML = icon(maximize_svg);
 w_close.innerHTML = icon(close_svg);
 w_mini.onclick = () => {
-    ipcRenderer.send("win", "mini");
+    ipcRenderer.send("win", pid, "mini");
 };
 w_max.onclick = () => {
-    ipcRenderer.send("win", "max");
+    ipcRenderer.send("win", pid, "max");
 };
 w_close.onclick = () => {
-    ipcRenderer.send("win", "close");
+    ipcRenderer.send("win", pid, "close");
 };
 
 system_el.append(w_mini, w_max, w_close);
@@ -39,10 +46,10 @@ system_el.append(w_mini, w_max, w_close);
 ipcRenderer.on("win", (e, a, arg) => {
     switch (a) {
         case "max":
-            w_max.innerHTML = icon(unmax_svg);
+            w_max.innerHTML = icon(unmaximize_svg);
             break;
         case "unmax":
-            w_max.innerHTML = icon(max_svg);
+            w_max.innerHTML = icon(maximize_svg);
             break;
         case "id":
             pid = arg;
@@ -54,13 +61,13 @@ let buttons = document.getElementById("buttoms");
 let url_el = document.getElementById("url");
 
 let b_back = document.createElement("div");
-b_back.innerHTML = icon(back_svg);
+b_back.innerHTML = icon(left_svg);
 b_back.onclick = () => {
     ipcRenderer.send("tab_view", "back");
 };
 
 let b_forward = document.createElement("div");
-b_forward.innerHTML = icon(forward_svg);
+b_forward.innerHTML = icon(right_svg);
 b_forward.onclick = () => {
     ipcRenderer.send("tab_view", "forward");
 };
@@ -73,13 +80,20 @@ b_reload.onclick = () => {
 
 buttons.append(b_back, b_forward, b_reload);
 
+function set_chrome_size(type: "nomal" | "hide" | "full") {
+    ipcRenderer.send("win", pid, `${type}_chrome`);
+    if (type == "nomal") {
+        search_list_el.innerHTML = "";
+    }
+}
+
 function set_url(url: string) {
     let x = new URL(url);
     let l = url.split(x.hostname);
     let hostl = x.hostname.split(".");
     let h = "";
     if (hostl.length == 3) {
-        l[0] += hostl[0];
+        l[0] += hostl[0] + ".";
         h = `${hostl[1]}.${hostl[2]}`;
     } else {
         h = x.hostname;
@@ -108,3 +122,78 @@ ipcRenderer.on("url", (e, view, type, arg) => {
 });
 
 ipcRenderer.send("tab_view", null, "add", "https://www.bing.com");
+
+let search_list_el = document.getElementById("search_list");
+let url_i: HTMLInputElement;
+url_el.onpointerdown = (e) => {
+    if ((e.target as HTMLElement).tagName == "INPUT") return;
+    e.preventDefault();
+    url_i = document.createElement("input");
+    url_i.value = url_el.innerText;
+    url_el.innerHTML = "";
+    url_el.append(url_i);
+    url_i.setSelectionRange(0, url_i.value.length);
+    url_i.focus();
+    set_chrome_size("full");
+    url_i.oninput = () => {
+        search(url_i.value);
+        r_search_l();
+    };
+    url_i.onblur = () => {
+        set_url(url_i.value);
+        set_chrome_size("nomal");
+    };
+};
+
+function to_url(str: string) {
+    if (str.match(/^:\/\//)) {
+        return `https${str}`;
+    } else if (str.match(/^http:\/\//i) || str.match(/^https:\/\//i)) {
+        return str;
+    } else {
+        return `https://${str}`;
+    }
+}
+
+function to_search_url(str: string) {
+    return `https://www.bing.com/search?q=%s`.replace("%s", str);
+}
+
+let search_list: { url: string; text: string; icon: string }[] = [];
+function search(str: string) {
+    search_list = [];
+    search_list.push({ url: to_url(str), text: `访问 ${to_url(str)}`, icon: browser_svg });
+    search_list.push({ url: to_search_url(str), text: `搜索 ${str}`, icon: search_svg });
+}
+
+function r_search_l() {
+    search_list_el.innerHTML = "";
+    for (let i of search_list) {
+        let el = create_div();
+        let icon_el = create_div();
+        let text = create_div();
+        let url_change = create_div();
+        let url_add = create_div();
+        el.setAttribute("data-url", i.url);
+        text.innerText = i.text;
+        icon_el.innerHTML = icon(i.icon);
+        url_add.innerHTML = icon(add_svg);
+        url_change.innerHTML = icon(right_svg);
+        el.append(icon_el, text, url_add, url_change);
+        el.onpointerdown = (e) => {
+            if (e.target != url_change && e.target != url_add) {
+                ipcRenderer.send("tab_view", null, "add", i.url);
+                set_chrome_size("nomal");
+            }
+        };
+        url_add.onpointerdown = () => {
+            ipcRenderer.send("tab_view", null, "add", i.url);
+            set_chrome_size("nomal");
+        };
+        url_change.onpointerdown = () => {
+            ipcRenderer.send("tab_view", now_win, "change", i.url);
+            set_chrome_size("nomal");
+        };
+        search_list_el.append(el);
+    }
+}

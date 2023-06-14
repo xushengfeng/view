@@ -497,7 +497,7 @@ function get_size(w: number, h: number) {
 // 主页面
 var main_window_l: { [n: number]: BrowserWindow } = {};
 var main_to_search_l: { [n: number]: Array<number> } = {};
-var main_to_chrome: { [n: number]: BrowserView } = {};
+var main_to_chrome: { [n: number]: { view: BrowserView; size: "normal" | "hide" | "full" } } = {};
 async function create_main_window() {
     var window_name = new Date().getTime();
     var main_window = (main_window_l[window_name] = new BrowserWindow({
@@ -536,7 +536,7 @@ async function create_main_window() {
             var [w, h] = main_window.getContentSize();
             for (let i of main_window.getBrowserViews()) {
                 if (i.getBounds().width != 0 && i != chrome) i.setBounds(get_size(w, h));
-                if (i == chrome) i.setBounds({ x: 0, y: 0, width: w, height: 24 });
+                if (i == chrome) set_chrome_size(window_name);
             }
         }, 0);
     });
@@ -558,10 +558,11 @@ async function create_main_window() {
     renderer_path(chrome.webContents, "frame.html");
     if (dev) chrome.webContents.openDevTools();
     main_window.addBrowserView(chrome);
-    chrome.setBounds({ x: 0, y: 0, width: main_window.getContentSize()[0], height: 24 });
-    main_to_chrome[window_name] = chrome;
-
-    chrome.webContents.send("win", "id", window_name);
+    main_to_chrome[window_name] = { view: chrome, size: "normal" };
+    set_chrome_size(window_name);
+    chrome.webContents.on("did-finish-load", () => {
+        chrome.webContents.send("win", "id", window_name);
+    });
 
     return window_name;
 }
@@ -575,7 +576,15 @@ ipcMain.on("open_url", (event, window_name, url) => {
     create_browser(window_name, url);
 });
 
-ipcMain.on("win", (e, type) => {
+function set_chrome_size(pid: number) {
+    let main_window = main_window_l[pid];
+    let x = main_to_chrome[pid];
+    let o = { full: main_window.getContentSize()[1], normal: 24, hide: 0 };
+    x.view.setBounds({ x: 0, y: 0, width: main_window.getContentSize()[0], height: o[x.size] });
+}
+
+ipcMain.on("win", (e, pid, type) => {
+    console.log(pid, type);
     let main_window = BrowserWindow.fromWebContents(e.sender);
     switch (type) {
         case "mini":
@@ -590,6 +599,18 @@ ipcMain.on("win", (e, type) => {
             break;
         case "close":
             main_window.close();
+            break;
+        case "full_chrome":
+            main_to_chrome[pid].size = "full";
+            set_chrome_size(pid);
+            break;
+        case "normal_chrome":
+            main_to_chrome[pid].size = "normal";
+            set_chrome_size(pid);
+            break;
+        case "hide_chrrome":
+            main_to_chrome[pid].size = "hide";
+            set_chrome_size(pid);
             break;
     }
 });
@@ -614,7 +635,7 @@ if (!fs.existsSync(path.join(app.getPath("userData"), "capture"))) {
 /** 创建浏览器页面 */
 async function create_browser(window_name: number, url: string) {
     let main_window = main_window_l[window_name];
-    let chrome = main_to_chrome[window_name];
+    let chrome = main_to_chrome[window_name].view;
 
     if (main_window.isDestroyed()) return;
     min_views(main_window);
