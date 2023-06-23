@@ -1,6 +1,8 @@
 :root {
     --text-color: #000;
     --text-color1: #0007;
+    --blur: blur(10px);
+    --bg: #fff9;
 }
 
 html,
@@ -15,8 +17,10 @@ body {
     flex-direction: row;
     height: 24px;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
     -webkit-app-region: drag;
+    background-color: var(--bg);
+    backdrop-filter: var(--blur);
 }
 
 #system_right {
