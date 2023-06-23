@@ -562,6 +562,7 @@ async function create_main_window() {
     set_chrome_size(window_name);
     chrome.webContents.on("did-finish-load", () => {
         chrome.webContents.send("win", "id", window_name);
+        chrome.webContents.send("win", "userData", app.getPath("userData"));
     });
 
     return window_name;
@@ -784,6 +785,15 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
             break;
         case "change":
             search_window.webContents.loadURL(arg2);
+            break;
+        case "switch":
+            for (let i in main_window_l) {
+                for (let j in main_to_search_l[i]) {
+                    if (j == arg2) {
+                        main_window_l[i].setTopBrowserView(search_window_l[j]);
+                    }
+                }
+            }
             break;
         case "home":
             min_views(main_window);

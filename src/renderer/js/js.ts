@@ -1,4 +1,5 @@
 const { ipcRenderer } = require("electron") as typeof import("electron");
+const Store = require("electron-store") as typeof import("electron-store");
 
 import minimize_svg from "../assets/icons/minimize.svg";
 import maximize_svg from "../assets/icons/maximize.svg";
@@ -21,6 +22,9 @@ function create_div() {
 
 /** browserwindow id */
 let pid = NaN;
+
+/** 用户目录 */
+let userDataPath = "";
 
 let w_mini = document.createElement("div");
 let w_max = document.createElement("div");
@@ -54,6 +58,9 @@ ipcRenderer.on("win", (e, a, arg) => {
         case "id":
             pid = arg;
             break;
+        case "userData":
+            userDataPath = arg;
+            break;
     }
 });
 
@@ -78,7 +85,13 @@ b_reload.onclick = () => {
     ipcRenderer.send("tab_view", "reload");
 };
 
-buttons.append(b_back, b_forward, b_reload);
+let show_tree = document.createElement("div");
+show_tree.innerHTML = icon(reload_svg);
+show_tree.onclick = () => {
+    set_chrome_size("full");
+};
+
+buttons.append(b_back, b_forward, b_reload, show_tree);
 
 function set_chrome_size(type: "normal" | "hide" | "full") {
     ipcRenderer.send("win", pid, `${type}_chrome`);
@@ -197,3 +210,47 @@ function r_search_l() {
         search_list_el.append(el);
     }
 }
+
+const tree_el = document.getElementById("tree");
+
+type tree = {
+    [id: number]: {
+        url: string;
+        title: string;
+        logo: string;
+        next?: { new: boolean; id: number }[];
+    };
+};
+
+let tree_store = new Store({ name: "tree" });
+let tree = (tree_store.store || {}) as tree;
+
+function create_card(id: number) {
+    let x = document.createElement("div");
+    let bar = document.createElement("div");
+    let title = document.createElement("div");
+    let img = document.createElement("img");
+
+    img.src = `file://${userDataPath}/capture/${id}.jpg`;
+
+    img.onclick = () => {
+        if (wins.includes(id)) {
+            ipcRenderer.send("tab_view", null, "switch", id);
+        }
+    };
+
+    x.append(img);
+
+    return x;
+}
+
+function render_tree() {
+    console.log(tree);
+
+    for (let i in tree) {
+        let x = create_card(Number(i));
+        tree_el.append(x);
+    }
+}
+
+window["r"] = render_tree;
