@@ -80,9 +80,9 @@ b_reload.onclick = () => {
 
 buttons.append(b_back, b_forward, b_reload);
 
-function set_chrome_size(type: "nomal" | "hide" | "full") {
+function set_chrome_size(type: "normal" | "hide" | "full") {
     ipcRenderer.send("win", pid, `${type}_chrome`);
-    if (type == "nomal") {
+    if (type == "normal") {
         search_list_el.innerHTML = "";
     }
 }
@@ -141,7 +141,7 @@ url_el.onpointerdown = (e) => {
     };
     url_i.onblur = () => {
         set_url(url_i.value);
-        set_chrome_size("nomal");
+        set_chrome_size("normal");
     };
 };
 
@@ -183,16 +183,16 @@ function r_search_l() {
         el.onpointerdown = (e) => {
             if (e.target != url_change && e.target != url_add) {
                 ipcRenderer.send("tab_view", null, "add", i.url);
-                set_chrome_size("nomal");
+                set_chrome_size("normal");
             }
         };
         url_add.onpointerdown = () => {
             ipcRenderer.send("tab_view", null, "add", i.url);
-            set_chrome_size("nomal");
+            set_chrome_size("normal");
         };
         url_change.onpointerdown = () => {
             ipcRenderer.send("tab_view", now_win, "change", i.url);
-            set_chrome_size("nomal");
+            set_chrome_size("normal");
         };
         search_list_el.append(el);
     }
