@@ -117,17 +117,17 @@ function set_url(url: string) {
     url_el.append(l[0], m, l[1]);
 }
 
-let wins = [];
-let now_win = NaN;
+let views = [];
+let now_view = NaN;
 
 ipcRenderer.on("url", (e, view, type, arg) => {
     switch (type) {
         case "new":
-            now_win = view;
-            wins.push(view);
+            now_view = view;
+            views.push(view);
             break;
         case "url":
-            if (view == now_win) {
+            if (view == now_view) {
                 set_url(arg);
             }
             break;
@@ -204,7 +204,7 @@ function r_search_l() {
             set_chrome_size("normal");
         };
         url_change.onpointerdown = () => {
-            ipcRenderer.send("tab_view", now_win, "change", i.url);
+            ipcRenderer.send("tab_view", now_view, "change", i.url);
             set_chrome_size("normal");
         };
         search_list_el.append(el);
@@ -234,7 +234,7 @@ function create_card(id: number) {
     img.src = `file://${userDataPath}/capture/${id}.jpg`;
 
     img.onclick = () => {
-        if (wins.includes(id)) {
+        if (views.includes(id)) {
             ipcRenderer.send("tab_view", null, "switch", id);
         }
     };
