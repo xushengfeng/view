@@ -371,6 +371,7 @@ async function create_browser(window_name: number, url: string) {
         return { action: "deny" };
     });
     if (dev) search_view.webContents.openDevTools();
+    if (!chrome.webContents.isDestroyed()) chrome.webContents.send("win", "bview_id", view);
     if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", tree_id, "new", url);
     search_view.webContents.on("page-title-updated", (event, title) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", tree_id, "title", title);
@@ -462,7 +463,7 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
     console.log(arg);
 
     let main_window = BrowserWindow.fromWebContents(e.sender);
-    let search_window = search_window_l[id];
+    let search_window = search_window_l.get(id);
     switch (arg) {
         case "close":
             main_window.removeBrowserView(search_window);

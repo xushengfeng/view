@@ -22,6 +22,8 @@ function create_div() {
 
 /** browserwindow id */
 let pid = NaN;
+/** BrowserView id */
+let bview_id = NaN;
 
 /** 用户目录 */
 let userDataPath = "";
@@ -57,6 +59,9 @@ ipcRenderer.on("win", (e, a, arg) => {
             break;
         case "id":
             pid = arg;
+            break;
+        case "bview_id":
+            bview_id = arg;
             break;
         case "userData":
             userDataPath = arg;
@@ -204,7 +209,7 @@ function r_search_l() {
             set_chrome_size("normal");
         };
         url_change.onpointerdown = () => {
-            ipcRenderer.send("tab_view", now_view, "change", i.url);
+            ipcRenderer.send("tab_view", bview_id, "change", i.url);
             set_chrome_size("normal");
         };
         search_list_el.append(el);
