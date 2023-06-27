@@ -488,7 +488,11 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
         case "add":
             main_window_l.forEach((w, id) => {
                 if (w == main_window) {
-                    create_browser(id, arg2);
+                    create_browser(id, arg2).then((id) => {
+                        let l = (tree_store.get(`0.next`) as tree[0]["next"]) || [];
+                        l.push({ id, new: true });
+                        tree_store.set(`0.next`, l);
+                    });
                 }
             });
             break;
