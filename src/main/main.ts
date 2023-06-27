@@ -302,6 +302,13 @@ ipcMain.on("win", (e, pid, type) => {
             break;
         case "close":
             main_window.close();
+            main_window_l.delete(pid);
+            for (let i of main_to_search_l.get(pid)) {
+                search_window_l.delete(i);
+                bview_view.delete(i);
+                bview_now.delete(i);
+            }
+            main_to_chrome.delete(pid);
             break;
         case "full_chrome":
             main_to_chrome.get(pid).size = "full";
@@ -373,6 +380,12 @@ async function create_browser(window_name: number, url: string) {
     if (dev) search_view.webContents.openDevTools();
     if (!chrome.webContents.isDestroyed()) chrome.webContents.send("win", "bview_id", view);
     if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", tree_id, "new", url);
+    search_view.webContents.on("destroyed", () => {
+        main_window.removeBrowserView(search_view);
+        search_window_l.delete(view);
+        bview_view.delete(view);
+        bview_now.delete(view);
+    });
     search_view.webContents.on("page-title-updated", (event, title) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", tree_id, "title", title);
         tree_store.set(`${tree_id}.title`, title);
@@ -466,10 +479,7 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
     let search_window = search_window_l.get(id);
     switch (arg) {
         case "close":
-            main_window.removeBrowserView(search_window);
-            // @ts-ignore
-            search_window.webContents.destroy();
-            search_window_l.delete(id);
+            search_window.webContents.close();
             break;
         case "top":
             // 有时直接把主页面当成浏览器打开，这时pid未初始化就触发top了，直接忽略
