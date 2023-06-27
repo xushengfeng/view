@@ -407,7 +407,7 @@ async function create_browser(window_name: number, url: string) {
         });
         if (dev) search_view.webContents.openDevTools();
     });
-    search_view.webContents.on("did-finish-load", async () => {
+    async function save_pic() {
         let image = await search_view.webContents.capturePage();
         fs.writeFile(
             path.join(app.getPath("userData"), "capture", tree_id + ".jpg"),
@@ -423,6 +423,10 @@ async function create_browser(window_name: number, url: string) {
                 image = null;
             }
         );
+    }
+    search_view.webContents.on("blur", () => save_pic);
+    search_view.webContents.on("did-finish-load", async () => {
+        save_pic();
 
         tree_text_store.set(
             String(tree_id),
