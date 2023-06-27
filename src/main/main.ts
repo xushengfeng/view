@@ -346,7 +346,7 @@ async function create_browser(window_name: number, url: string) {
     if (main_window.isDestroyed()) return;
     min_views(main_window);
     const view: bview_id = new Date().getTime();
-    const tree_id: view_id = new Date().getTime();
+    let tree_id: view_id = new Date().getTime();
     bview_view.set(view, [tree_id]);
     bview_now.set(view, tree_id);
 
@@ -387,7 +387,9 @@ async function create_browser(window_name: number, url: string) {
         l.push({ id: new_id, new: false });
         tree_store.set(`${tree_id}.next`, l);
         bview_view.get(view).push(new_id);
+        tree_id = new_id;
         bview_now.set(view, tree_id);
+        tree_store.set(String(tree_id), { logo: "", url: url, title: "" });
     });
     search_view.webContents.on("did-navigate-in-page", (event, url, isMainFrame) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", tree_id, "url", url);
