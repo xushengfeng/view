@@ -553,9 +553,33 @@ function aria2(m: string, p: any[]) {
     });
 }
 
+let check_global_aria2_run = false;
+function check_global_aria2() {
+    setInterval(async () => {
+        if (check_global_aria2_run) {
+            let has = 0,
+                t = 0;
+            let al = (await aria2("tellActive", [])) as any[];
+            for (let i of al) {
+                has += i.completedLength;
+                t += i.totalLength;
+            }
+            let wl = (await aria2("tellActive", [])) as any[];
+            for (let i of wl) {
+                t += i.totalLength;
+            }
+            for (let i of main_window_l.values()) {
+                i.setProgressBar(has / t);
+            }
+        }
+    }, 500);
+}
+
 async function download(url: string) {
     if (!aria2_port) await aria2_start();
     aria2("addUri", [[url]]);
+    check_global_aria2_run = true;
+    check_global_aria2();
 }
 
 // 默认设置
