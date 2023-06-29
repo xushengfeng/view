@@ -176,7 +176,6 @@ function get_size(w: number, h: number) {
     return { x: 0, y: 0, width: w, height: h };
 }
 
-// 主页面
 /** BrowserWindow id */
 type bwin_id = number;
 /** BrowserView id */
@@ -186,6 +185,11 @@ type view_id = number;
 var main_window_l: Map<bwin_id, BrowserWindow> = new Map();
 var main_to_search_l: Map<bwin_id, bview_id[]> = new Map();
 var main_to_chrome: Map<bwin_id, { view: BrowserView; size: "normal" | "hide" | "full" }> = new Map();
+var search_window_l: Map<bview_id, BrowserView> = new Map();
+var bview_view: Map<bview_id, view_id[]> = new Map();
+var bview_now: Map<bview_id, view_id> = new Map();
+
+// 窗口
 async function create_main_window() {
     const window_name = new Date().getTime();
     let main_window = new BrowserWindow({
@@ -257,8 +261,6 @@ async function create_main_window() {
     return window_name;
 }
 
-var search_window_l: Map<bview_id, BrowserView> = new Map();
-
 function set_chrome_size(pid: number) {
     let main_window = main_window_l.get(pid);
     let x = main_to_chrome.get(pid);
@@ -306,24 +308,20 @@ ipcMain.on("win", (e, pid, type) => {
 });
 
 type tree = {
-    [id: number]: {
+    [id: view_id]: {
         url: string;
         title: string;
         logo: string;
-        next?: { new: boolean; id: number }[];
+        next?: { new: boolean; id: view_id }[];
     };
 };
 
 var tree_text_store = new Store({ name: "text" });
 let tree_store = new Store({ name: "tree" });
-let tree = (tree_store.get("tree") || {}) as tree;
 
 if (!fs.existsSync(path.join(app.getPath("userData"), "capture"))) {
     fs.mkdirSync(path.join(app.getPath("userData"), "capture"));
 }
-
-var bview_view: Map<bview_id, view_id[]> = new Map();
-var bview_now: Map<bview_id, view_id> = new Map();
 
 /** 创建浏览器页面 */
 async function create_browser(window_name: number, url: string) {
@@ -492,7 +490,7 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
                         }
                     });
                     if (!bview_now.get(bv) == arg2) {
-                        search_window_l.get(bv).webContents.loadURL(tree[arg2].url);
+                        search_window_l.get(bv).webContents.loadURL(tree_store.get(`${arg2}.url`) as string);
                     }
                 }
             });
