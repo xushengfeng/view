@@ -301,7 +301,13 @@ function menu(params: Electron.ContextMenuParams) {
             clipboard.writeText(params.srcURL);
         };
 
-        menu_el.append(open, copy);
+        let download = document.createElement("div");
+        download.innerText = "下载媒体";
+        download.onclick = () => {
+            ipcRenderer.send("tab_view", null, "download", params.srcURL);
+        };
+
+        menu_el.append(open, copy, download);
     }
 
     let inspect = document.createElement("div");

@@ -17,7 +17,7 @@ import {
 const Store = require("electron-store") as typeof import("electron-store");
 import * as path from "path";
 const run_path = path.join(path.resolve(__dirname, ""), "../../");
-import { exec } from "child_process";
+import { spawn, exec } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import { t, lan } from "../../lib/translate/translate";
@@ -433,6 +433,11 @@ async function create_browser(window_name: number, url: string) {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("win", "menu", p);
     });
 
+    search_view.webContents.session.on("will-download", (e, i) => {
+        e.preventDefault();
+        download(i.getURL());
+    });
+
     return view_id;
 }
 
@@ -490,6 +495,9 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
         case "inspect":
             search_window.webContents.inspectElement(arg2.x, arg2.y);
             break;
+        case "download":
+            download(arg2);
+            break;
     }
 });
 
@@ -497,6 +505,58 @@ ipcMain.on("theme", (e, v) => {
     nativeTheme.themeSource = v;
     store.set("全局.深色模式", v);
 });
+
+let aria2_port = NaN;
+const aria2_f = path.join(run_path, "extra", process.platform, process.arch, "engine", "aria2c");
+const aria2_conf = path.join(run_path, "extra", process.platform, process.arch, "engine", "aria2.conf");
+
+let aria2_p: ReturnType<typeof spawn>;
+function aria2_start() {
+    console.log(aria2_f, aria2_conf);
+    const child = spawn(aria2_f, [`--conf-path=${aria2_conf}`, `-d ${app.getPath("downloads")}`]);
+    aria2_p = child;
+    return new Promise((re: (n: number) => void, rj) => {
+        child.stdout.on("data", (data) => {
+            console.log(`Received chunk ${data}`);
+            if (String(data).includes("listening on TCP port")) {
+                aria2_port = Number(String(data).match(/listening on TCP port ([0-9]+)/)[1]);
+                re(aria2_port);
+            }
+        });
+        child.stderr.on("data", (data) => {
+            console.log(`Received chunk ${data}`);
+            rj(data);
+        });
+    });
+}
+
+function aria2(m: string, p: any[]) {
+    return new Promise((re, rj) => {
+        fetch(`http://localhost:${aria2_port}/jsonrpc`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                jsonrpc: "2.0",
+                method: `aria2.${m}`,
+                id: "1",
+                params: p,
+            }),
+        })
+            .then((r) => r.json())
+            .then((data) => {
+                console.log(data);
+                re(data);
+            })
+            .catch((e) => rj(e));
+    });
+}
+
+async function download(url: string) {
+    if (!aria2_port) await aria2_start();
+    aria2("addUri", [[url]]);
+}
 
 // 默认设置
 var default_setting = {
