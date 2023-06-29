@@ -1,4 +1,4 @@
-const { ipcRenderer } = require("electron") as typeof import("electron");
+const { ipcRenderer, clipboard } = require("electron") as typeof import("electron");
 const Store = require("electron-store") as typeof import("electron-store");
 
 import minimize_svg from "../assets/icons/minimize.svg";
@@ -66,6 +66,9 @@ ipcRenderer.on("win", (e, a, arg) => {
         case "userData":
             userDataPath = arg;
             break;
+        case "menu":
+            console.log(arg);
+            menu(arg);
     }
 });
 
@@ -259,3 +262,72 @@ function render_tree() {
 }
 
 window["r"] = render_tree;
+
+const menu_el = document.getElementById("menu");
+function menu(params: Electron.ContextMenuParams) {
+    set_chrome_size("full");
+
+    // @ts-ignore
+    menu_el.showPopover();
+
+    menu_el.innerHTML = "";
+
+    if (params.linkURL) {
+        let open = document.createElement("div");
+        open.innerText = "打开链接";
+        open.onclick = () => {
+            ipcRenderer.send("tab_view", null, "add", params.linkURL);
+        };
+
+        let copy = document.createElement("div");
+        copy.innerText = "复制链接";
+        copy.onclick = () => {
+            clipboard.writeText(params.linkURL);
+        };
+
+        menu_el.append(open, copy);
+    }
+
+    if (params.mediaType != "none") {
+        let open = document.createElement("div");
+        open.innerText = "打开媒体";
+        open.onclick = () => {
+            ipcRenderer.send("tab_view", null, "add", params.srcURL);
+        };
+
+        let copy = document.createElement("div");
+        copy.innerText = "复制链接";
+        copy.onclick = () => {
+            clipboard.writeText(params.srcURL);
+        };
+
+        menu_el.append(open, copy);
+    }
+
+    let inspect = document.createElement("div");
+    inspect.innerText = "检查";
+    inspect.onclick = () => {
+        ipcRenderer.send("tab_view", bview_id, "inspect", { x: params.x, y: params.y });
+    };
+
+    menu_el.append(inspect);
+
+    setTimeout(() => {
+        menu_el.style.left = Math.min(params.x, window.innerWidth - menu_el.offsetWidth) + "px";
+        menu_el.style.top = Math.min(params.y, window.innerHeight - menu_el.offsetHeight) + "px";
+    }, 10);
+}
+
+menu_el.addEventListener("toggle", (e) => {
+    // @ts-ignore
+    if (e.newState == "closed") {
+        set_chrome_size("normal");
+    }
+});
+
+menu_el.onclick = hide_menu;
+
+function hide_menu() {
+    // @ts-ignore
+    menu_el.hidePopover();
+}

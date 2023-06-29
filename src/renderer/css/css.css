@@ -1,8 +1,11 @@
 :root {
     --text-color: #000;
     --text-color1: #0007;
+    --border-r: 4px;
     --blur: blur(10px);
     --bg: #fff9;
+    --border-c: #fff;
+    --border: 1px solid var(--border-c);
 }
 
 html,
@@ -115,4 +118,13 @@ body {
 
 #tree {
     position: relative;
+}
+
+#menu {
+    position: fixed;
+    background-color: var(--bg);
+    backdrop-filter: var(--blur);
+    border-radius: var(--border-r);
+    border: var(--border);
+    margin: 0;
 }

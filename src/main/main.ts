@@ -429,6 +429,10 @@ async function create_browser(window_name: number, url: string) {
         if (dev) search_view.webContents.openDevTools();
     });
 
+    search_view.webContents.on("context-menu", (e, p) => {
+        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("win", "menu", p);
+    });
+
     return view_id;
 }
 
@@ -482,6 +486,9 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
             break;
         case "dev":
             search_window.webContents.openDevTools();
+            break;
+        case "inspect":
+            search_window.webContents.inspectElement(arg2.x, arg2.y);
             break;
     }
 });
