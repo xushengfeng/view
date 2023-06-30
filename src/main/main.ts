@@ -324,6 +324,16 @@ if (!fs.existsSync(path.join(app.getPath("userData"), "capture"))) {
     fs.mkdirSync(path.join(app.getPath("userData"), "capture"));
 }
 
+function get_real_url(url: string) {
+    if (url.startsWith("view")) {
+        let h = url.replace(/^view:\/\//, "");
+        return renderer_url(h + ".html");
+    } else {
+        return url;
+    }
+    // TODO 改变location和new URL
+}
+
 /** 创建浏览器页面 */
 async function create_browser(window_name: number, url: string) {
     let main_window = main_window_l.get(window_name);
@@ -339,7 +349,8 @@ async function create_browser(window_name: number, url: string) {
     main_window.addBrowserView(search_view);
     main_window.setTopBrowserView(chrome);
     const wc = search_view.webContents;
-    wc.loadURL(url);
+    const real_url = get_real_url(url);
+    wc.loadURL(real_url);
     var [w, h] = main_window.getContentSize();
     search_view.setBounds(get_size(w, h));
     main_window.setContentSize(w, h + 1);
