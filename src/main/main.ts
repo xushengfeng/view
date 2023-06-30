@@ -436,6 +436,18 @@ async function create_browser(window_name: number, url: string) {
         download(i.getURL());
     });
 
+    wc.session.setPermissionCheckHandler((w, p, ro) => {
+        return true;
+    });
+    wc.session.setPermissionRequestHandler((w, p, cb) => {
+        chrome.webContents.send("site_about", p, w.getURL());
+        ipcMain.on("site_about", (_e, a, pp, b) => {
+            if (a == w.getURL() && pp == p) {
+                cb(b);
+            }
+        });
+    });
+
     return view_id;
 }
 

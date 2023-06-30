@@ -128,3 +128,18 @@ body {
     border: var(--border);
     margin: 0;
 }
+
+#site_about {
+    position: fixed;
+    background-color: var(--bg);
+    backdrop-filter: var(--blur);
+    border-radius: var(--border-r);
+    border: var(--border);
+    margin: 0;
+    left: 0;
+    top: 24px;
+}
+
+#site_about > #permission > div {
+    display: flex;
+}

@@ -108,7 +108,10 @@ function set_chrome_size(type: "normal" | "hide" | "full") {
     }
 }
 
+let now_url = "about:blank";
+
 function set_url(url: string) {
+    now_url = url;
     let x = new URL(url);
     let l = url.split(x.hostname);
     let hostl = x.hostname.split(".");
@@ -337,3 +340,71 @@ function hide_menu() {
     // @ts-ignore
     menu_el.hidePopover();
 }
+
+const site_about_el = document.getElementById("site_about");
+const permission_el = document.getElementById("permission");
+
+let site_p_list: Map<string, string[]> = new Map();
+ipcRenderer.on("site_about", (_e, p, url) => {
+    console.log(url);
+
+    set_chrome_size("full");
+
+    // @ts-ignore
+    site_about_el.showPopover();
+
+    let l = site_p_list.get(url) || [];
+    l.push(p);
+    site_p_list.set(url, l);
+
+    render_site_permission_requ();
+});
+
+function render_site_permission_requ() {
+    permission_el.innerHTML = "";
+    let url = now_url;
+    let l = site_p_list.get(url) || [];
+    let t = document.createElement("div");
+    let lel = document.createElement("div");
+    t.innerText = `${new URL(url)}`;
+    for (let i of l) {
+        let x = document.createElement("div");
+        let t = document.createElement("div");
+        t.innerText = i;
+        let al = document.createElement("div");
+        al.innerText = "allow";
+        let rj = document.createElement("div");
+        rj.innerText = "rj";
+        al.onclick = () => {
+            ipcRenderer.send("site_about", url, i, true);
+            set_chrome_size("normal");
+            site_p_list.set(
+                url,
+                l.filter((x) => x != i)
+            );
+        };
+        rj.onclick = () => {
+            ipcRenderer.send("site_about", url, i, false);
+            set_chrome_size("normal");
+            site_p_list.set(
+                url,
+                l.filter((x) => x != i)
+            );
+        };
+        x.append(t, al, rj);
+        lel.append(x);
+    }
+    permission_el.append(t, lel);
+}
+
+site_about_el.addEventListener("toggle", (e) => {
+    // @ts-ignore
+    if (e.newState == "closed") {
+        set_chrome_size("normal");
+        if (site_p_list.get(now_url).length != 0) {
+            for (let i of site_p_list.get(now_url)) {
+                ipcRenderer.send("site_about", now_url, i, false);
+            }
+        }
+    }
+});
