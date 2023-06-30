@@ -22,6 +22,7 @@ import * as fs from "fs";
 import * as os from "os";
 import { t, lan } from "../../lib/translate/translate";
 import url from "node:url";
+import { setting } from "../setting";
 
 // 自定义用户路径
 try {
@@ -593,7 +594,7 @@ async function download(url: string) {
 }
 
 // 默认设置
-var default_setting = {
+var default_setting: setting = {
     firstRun: false,
     settingVersion: app.getVersion(),
 };
