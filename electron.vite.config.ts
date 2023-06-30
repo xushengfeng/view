@@ -15,6 +15,7 @@ export default defineConfig({
                 input: {
                     frame: path.resolve(__dirname, "src/renderer/frame.html"),
                     setting: path.resolve(__dirname, "src/renderer/setting.html"),
+                    download: path.resolve(__dirname, "src/renderer/download.html"),
                     browser_bg: path.resolve(__dirname, "src/renderer/browser_bg.html"),
                 },
             },
