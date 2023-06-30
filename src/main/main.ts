@@ -332,12 +332,13 @@ async function create_browser(window_name: number, url: string) {
     search_window_l.set(view_id, search_view);
     main_window.addBrowserView(search_view);
     main_window.setTopBrowserView(chrome);
-    search_view.webContents.loadURL(url);
+    const wc = search_view.webContents;
+    wc.loadURL(url);
     var [w, h] = main_window.getContentSize();
     search_view.setBounds(get_size(w, h));
     main_window.setContentSize(w, h + 1);
     main_window.setContentSize(w, h);
-    search_view.webContents.setWindowOpenHandler(({ url }) => {
+    wc.setWindowOpenHandler(({ url }) => {
         create_browser(window_name, url).then((id) => {
             let l = (tree_store.get(`${view_id}.next`) as tree[0]["next"]) || [];
             l.push({ id, new: true });
@@ -345,22 +346,22 @@ async function create_browser(window_name: number, url: string) {
         });
         return { action: "deny" };
     });
-    if (dev) search_view.webContents.openDevTools();
+    if (dev) wc.openDevTools();
     if (!chrome.webContents.isDestroyed()) chrome.webContents.send("win", "bview_id", view_id);
     if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "new", url);
-    search_view.webContents.on("destroyed", () => {
+    wc.on("destroyed", () => {
         main_window.removeBrowserView(search_view);
         search_window_l.delete(view_id);
     });
-    search_view.webContents.on("page-title-updated", (event, title) => {
+    wc.on("page-title-updated", (event, title) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "title", title);
         tree_store.set(`${view_id}.title`, title);
     });
-    search_view.webContents.on("page-favicon-updated", (event, favlogo) => {
+    wc.on("page-favicon-updated", (event, favlogo) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "icon", favlogo);
         tree_store.set(`${view_id}.logo`, favlogo[0]);
     });
-    search_view.webContents.on("will-navigate", (event) => {
+    wc.on("will-navigate", (event) => {
         create_browser(window_name, event.url).then((id) => {
             let l = (tree_store.get(`${view_id}.next`) as tree[0]["next"]) || [];
             l.push({ id, new: false });
@@ -368,27 +369,27 @@ async function create_browser(window_name: number, url: string) {
         });
         event.preventDefault();
     });
-    search_view.webContents.on("did-navigate", (event, url) => {
+    wc.on("did-navigate", (event, url) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "url", url);
     });
-    search_view.webContents.on("did-navigate-in-page", (event, url, isMainFrame) => {
+    wc.on("did-navigate-in-page", (event, url, isMainFrame) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "url", url);
         if (isMainFrame) tree_store.set(`${view_id}.url`, url);
     });
-    search_view.webContents.on("did-start-loading", () => {
+    wc.on("did-start-loading", () => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "load", true);
     });
-    search_view.webContents.on("did-stop-loading", () => {
+    wc.on("did-stop-loading", () => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "load", false);
     });
-    search_view.webContents.on("did-fail-load", (event, err_code, err_des) => {
-        renderer_path(search_view.webContents, "browser_bg.html", {
+    wc.on("did-fail-load", (event, err_code, err_des) => {
+        renderer_path(wc, "browser_bg.html", {
             query: { type: "did-fail-load", err_code: String(err_code), err_des },
         });
-        if (dev) search_view.webContents.openDevTools();
+        if (dev) wc.openDevTools();
     });
     async function save_pic() {
-        let image = await search_view.webContents.capturePage();
+        let image = await wc.capturePage();
         fs.writeFile(
             path.join(app.getPath("userData"), "capture", view_id + ".jpg"),
             image
@@ -404,36 +405,33 @@ async function create_browser(window_name: number, url: string) {
             }
         );
     }
-    search_view.webContents.on("blur", () => save_pic);
-    search_view.webContents.on("did-finish-load", async () => {
+    wc.on("blur", () => save_pic);
+    wc.on("did-finish-load", async () => {
         save_pic();
 
-        tree_text_store.set(
-            String(view_id),
-            await search_view.webContents.executeJavaScript("document.body.innerText")
-        );
+        tree_text_store.set(String(view_id), await wc.executeJavaScript("document.body.innerText"));
     });
-    search_view.webContents.on("render-process-gone", () => {
-        renderer_path(search_view.webContents, "browser_bg.html", { query: { type: "render-process-gone" } });
-        if (dev) search_view.webContents.openDevTools();
+    wc.on("render-process-gone", () => {
+        renderer_path(wc, "browser_bg.html", { query: { type: "render-process-gone" } });
+        if (dev) wc.openDevTools();
     });
-    search_view.webContents.on("unresponsive", () => {
-        renderer_path(search_view.webContents, "browser_bg.html", { query: { type: "unresponsive" } });
-        if (dev) search_view.webContents.openDevTools();
+    wc.on("unresponsive", () => {
+        renderer_path(wc, "browser_bg.html", { query: { type: "unresponsive" } });
+        if (dev) wc.openDevTools();
     });
-    search_view.webContents.on("responsive", () => {
-        search_view.webContents.loadURL(url);
+    wc.on("responsive", () => {
+        wc.loadURL(url);
     });
-    search_view.webContents.on("certificate-error", () => {
-        renderer_path(search_view.webContents, "browser_bg.html", { query: { type: "certificate-error" } });
-        if (dev) search_view.webContents.openDevTools();
+    wc.on("certificate-error", () => {
+        renderer_path(wc, "browser_bg.html", { query: { type: "certificate-error" } });
+        if (dev) wc.openDevTools();
     });
 
-    search_view.webContents.on("context-menu", (e, p) => {
+    wc.on("context-menu", (e, p) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("win", "menu", p);
     });
 
-    search_view.webContents.session.on("will-download", (e, i) => {
+    wc.session.on("will-download", (e, i) => {
         e.preventDefault();
         download(i.getURL());
     });
