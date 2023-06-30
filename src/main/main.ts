@@ -52,8 +52,7 @@ if (process.argv.includes("-d") || import.meta.env.DEV) {
     dev = false;
 }
 
-/** 加载网页 */
-function renderer_path(window: BrowserWindow | Electron.WebContents, file_name: string, q?: Electron.LoadFileOptions) {
+function renderer_url(file_name: string, q?: Electron.LoadFileOptions) {
     if (!q) {
         q = { query: { config_path: app.getPath("userData") } };
     } else if (!q.query) {
@@ -61,22 +60,28 @@ function renderer_path(window: BrowserWindow | Electron.WebContents, file_name: 
     } else {
         q.query["config_path"] = app.getPath("userData");
     }
+    let x: url.URL;
     if (!app.isPackaged && process.env["ELECTRON_RENDERER_URL"]) {
         let main_url = `${process.env["ELECTRON_RENDERER_URL"]}/${file_name}`;
-        let x = new url.URL(main_url);
-        if (q) {
-            if (q.search) x.search = q.search;
-            if (q.query) {
-                for (let i in q.query) {
-                    x.searchParams.set(i, q.query[i]);
-                }
-            }
-            if (q.hash) x.hash = q.hash;
-        }
-        window.loadURL(x.toString());
+        x = new url.URL(main_url);
     } else {
-        window.loadFile(path.join(__dirname, "../renderer", file_name), q);
+        x = new url.URL("file://" + path.join(__dirname, "../renderer", file_name));
     }
+    if (q) {
+        if (q.search) x.search = q.search;
+        if (q.query) {
+            for (let i in q.query) {
+                x.searchParams.set(i, q.query[i]);
+            }
+        }
+        if (q.hash) x.hash = q.hash;
+    }
+    return x.toString();
+}
+
+/** 加载网页 */
+function renderer_path(window: BrowserWindow | Electron.WebContents, file_name: string, q?: Electron.LoadFileOptions) {
+    window.loadURL(renderer_url(file_name, q));
 }
 
 app.commandLine.appendSwitch("enable-experimental-web-platform-features", "enable");
