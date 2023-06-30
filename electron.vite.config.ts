@@ -13,7 +13,7 @@ export default defineConfig({
         build: {
             rollupOptions: {
                 input: {
-                    index: path.resolve(__dirname, "src/renderer/index.html"),
+                    frame: path.resolve(__dirname, "src/renderer/frame.html"),
                     setting: path.resolve(__dirname, "src/renderer/setting.html"),
                     browser_bg: path.resolve(__dirname, "src/renderer/browser_bg.html"),
                 },

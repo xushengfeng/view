@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 const { ipcRenderer, clipboard } = require("electron") as typeof import("electron");
 const Store = require("electron-store") as typeof import("electron-store");
 
@@ -172,7 +174,7 @@ url_el.onpointerdown = (e) => {
 function to_url(str: string) {
     if (str.match(/^:\/\//)) {
         return `https${str}`;
-    } else if (str.match(/^http:\/\//i) || str.match(/^https:\/\//i)) {
+    } else if (str.match(/^[a-z]+:\/\//i)) {
         return str;
     } else {
         return `https://${str}`;
