@@ -143,3 +143,10 @@ body {
 #site_about > #permission > div {
     display: flex;
 }
+
+#status_bar{
+    background-color: var(--bg);
+    backdrop-filter: var(--blur);
+    border-radius: var(--border-r);
+
+}

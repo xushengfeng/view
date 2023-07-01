@@ -476,6 +476,10 @@ async function create_browser(window_name: number, url: string) {
         });
     });
 
+    wc.on("update-target-url", (_e, url) => {
+        wc.send("view_event", "target_url", url);
+    });
+
     return view_id;
 }
 
