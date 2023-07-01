@@ -89,8 +89,13 @@ body {
 }
 
 #setting_item h2 {
-    font-size: 1.8rem;
+    font-size: 1.46rem;
     margin-block-end: 1.2rem;
+}
+
+#setting_item h3 {
+    font-size: 1.14rem;
+    font-weight: normal;
 }
 
 textarea {
