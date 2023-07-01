@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld("electron", {});
 window.onload = () => {
     console.log("hi");
     init_status_bar();
+    get_opensearch();
 };
 
 let status_bar = document.createElement("div");
@@ -29,6 +30,38 @@ function init_status_bar() {
 }
 
 let status_bar_t1: NodeJS.Timeout;
+
+function get_opensearch() {
+    let l = {};
+    document.querySelectorAll('link[type="application/opensearchdescription+xml"').forEach((el) => {
+        let href = el.getAttribute("href");
+        if (href) {
+            fetch(href)
+                .then((x) => x.text())
+                .then((text) => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(text, "application/xml");
+                    let name = doc.querySelector("ShortName").textContent;
+                    l[name] = {
+                        des: doc.querySelector("Description").textContent,
+                        img: doc.querySelector("Image").textContent,
+                        url: "",
+                        sug: "",
+                    };
+                    doc.querySelectorAll("Url").forEach((el) => {
+                        let type = el.getAttribute("type");
+                        if (type == "text/html") {
+                            l[name].url = el.getAttribute("template").replaceAll("{searchTerms}", "%s");
+                        }
+                        if (type == "application/x-suggestions+json" || type == "application/json") {
+                            l[name].sug = el.getAttribute("template").replaceAll("{searchTerms}", "%s");
+                        }
+                    });
+                    ipcRenderer.send("view", "opensearch", l);
+                });
+        }
+    });
+}
 
 ipcRenderer.on("view_event", (_e, type, arg) => {
     switch (type) {

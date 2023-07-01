@@ -559,6 +559,15 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
     }
 });
 
+ipcMain.on("view", (_e, type, arg) => {
+    switch (type) {
+        case "opensearch":
+            console.log(arg);
+            // TODO store
+            break;
+    }
+});
+
 ipcMain.on("theme", (e, v) => {
     nativeTheme.themeSource = v;
     store.set("全局.深色模式", v);
