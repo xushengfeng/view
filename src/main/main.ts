@@ -480,6 +480,14 @@ async function create_browser(window_name: number, url: string) {
         wc.send("view_event", "target_url", url);
     });
 
+    wc.on("devtools-open-url", (_e, url) => {
+        create_browser(window_name, url).then((id) => {
+            let l = (tree_store.get(`0.next`) as tree[0]["next"]) || [];
+            l.push({ id, new: true });
+            tree_store.set(`0.next`, l);
+        });
+    });
+
     return view_id;
 }
 
