@@ -488,6 +488,14 @@ async function create_browser(window_name: number, url: string) {
         });
     });
 
+    wc.on("zoom-changed", (_e, d) => {
+        let l = wc.zoomFactor;
+        let x = l + (d == "in" ? 0.1 : -0.1);
+        x = Math.min(5, Math.max(0.2, x));
+        wc.setZoomFactor(x);
+        chrome.webContents.send("win", "zoom", x);
+    });
+
     return view_id;
 }
 

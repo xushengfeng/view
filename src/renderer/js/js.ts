@@ -71,6 +71,11 @@ ipcRenderer.on("win", (e, a, arg) => {
         case "menu":
             console.log(arg);
             menu(arg);
+            break;
+        case "zoom":
+            console.log(arg);
+            // TODO show
+            break;
     }
 });
 
