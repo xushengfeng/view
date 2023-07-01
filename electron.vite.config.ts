@@ -9,6 +9,15 @@ export default defineConfig({
             },
         },
     },
+    preload: {
+        build: {
+            rollupOptions: {
+                input: {
+                    view: path.resolve(__dirname, "src/preload/view.ts"),
+                },
+            },
+        },
+    },
     renderer: {
         build: {
             rollupOptions: {

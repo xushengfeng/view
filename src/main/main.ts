@@ -344,17 +344,18 @@ async function create_browser(window_name: number, url: string) {
 
     tree_store.set(String(view_id), { logo: "", url: url, title: "" });
 
-    let search_view = new BrowserView(
-        url.startsWith("view://")
-            ? {
-                  webPreferences: {
-                      nodeIntegration: true,
-                      contextIsolation: false,
-                      webSecurity: false,
-                  },
-              }
-            : null
-    );
+    let op: Electron.BrowserViewConstructorOptions = {
+        webPreferences: {
+            preload: path.join(__dirname, "../preload", "view.js"),
+        },
+    };
+    if (url.startsWith("view://")) {
+        op.webPreferences.nodeIntegration = true;
+        op.webPreferences.contextIsolation = false;
+        op.webPreferences.webSecurity = false;
+    }
+
+    let search_view = new BrowserView(op);
     search_window_l.set(view_id, search_view);
     main_window.addBrowserView(search_view);
     main_window.setTopBrowserView(chrome);
