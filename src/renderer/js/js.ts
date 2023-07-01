@@ -2,6 +2,9 @@
 
 const { ipcRenderer, clipboard } = require("electron") as typeof import("electron");
 const Store = require("electron-store") as typeof import("electron-store");
+import { setting } from "../../setting";
+
+let setting = new Store().store as unknown as setting;
 
 import minimize_svg from "../assets/icons/minimize.svg";
 import maximize_svg from "../assets/icons/maximize.svg";
@@ -177,6 +180,7 @@ url_el.onpointerdown = (e) => {
     url_i.setSelectionRange(0, url_i.value.length);
     url_i.focus();
     set_chrome_size("full");
+    init_search();
     url_i.oninput = () => {
         search(url_i.value);
         r_search_l();
@@ -197,8 +201,20 @@ function to_url(str: string) {
     }
 }
 
+let default_engine: string = "";
+let search_url: string = "";
+let suggestions_url: string = "";
+
+init_search();
+
+function init_search() {
+    default_engine = setting.searchEngine.default;
+    search_url = setting.searchEngine.engine[default_engine].url;
+    suggestions_url = setting.searchEngine.engine[default_engine].sug;
+}
+
 function to_search_url(str: string) {
-    return `https://www.bing.com/search?q=%s`.replace("%s", str);
+    return search_url.replace("%s", encodeURIComponent(str));
 }
 
 let search_list: { url: string; text: string; icon: string }[] = [];
@@ -206,6 +222,16 @@ function search(str: string) {
     search_list = [];
     search_list.push({ url: to_url(str), text: `访问 ${to_url(str)}`, icon: browser_svg });
     search_list.push({ url: to_search_url(str), text: `搜索 ${str}`, icon: search_svg });
+    fetch(suggestions_url.replace("%s", encodeURIComponent(str)))
+        .then((j) => j.json())
+        .then((j) => {
+            if (j[1]) {
+                for (let s of j[1]) {
+                    search_list.push({ url: to_search_url(s), text: s, icon: search_svg });
+                }
+            }
+            r_search_l();
+        });
 }
 
 function r_search_l() {

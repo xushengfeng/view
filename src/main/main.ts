@@ -653,6 +653,40 @@ async function download(url: string) {
 var default_setting: setting = {
     firstRun: false,
     settingVersion: app.getVersion(),
+
+    searchEngine: {
+        default: "Bing",
+        engine: {
+            Bing: {
+                des: "",
+                from: "user",
+                img: "https://www.bing.com/favicon.ico",
+                url: "https://www.bing.com/search?q=%s",
+                sug: "https://api.bing.com/osjson.aspx?query=%s",
+            },
+            百度: {
+                des: "",
+                from: "user",
+                img: "https://www.baidu.com/favicon.ico",
+                url: "https://www.baidu.com/s?wd=%s",
+                sug: "http://suggestion.baidu.com/su?wd=%s&action=opensearch&ie=utf-8",
+            },
+            "360": {
+                des: "",
+                from: "user",
+                img: "https://www.so.com/favicon.ico",
+                url: "https://www.so.com/s?src=opensearch&q=%s",
+                sug: "",
+            },
+            搜狗搜索: {
+                des: "",
+                from: "user",
+                img: "https://www.sogou.com/images/logo/new/favicon.ico?v=4",
+                url: "https://www.sogou.com/web?query=%s&ie=utf8",
+                sug: "",
+            },
+        },
+    },
 };
 
 function set_default_setting() {
