@@ -288,6 +288,22 @@ function menu(params: Electron.ContextMenuParams) {
 
     menu_el.innerHTML = "";
 
+    if (params.selectionText) {
+        let copy = document.createElement("div");
+        copy.innerText = "复制";
+        copy.onclick = () => {
+            clipboard.writeText(params.selectionText.trim());
+        };
+
+        let search = document.createElement("div");
+        search.innerText = `搜索“${params.selectionText.trim()}”`;
+        search.onclick = () => {
+            ipcRenderer.send("tab_view", null, "add", to_search_url(params.selectionText.trim()));
+        };
+
+        menu_el.append(copy, search);
+    }
+
     if (params.linkURL) {
         let open = document.createElement("div");
         open.innerText = "打开链接";
