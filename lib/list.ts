@@ -11,6 +11,7 @@ function list(pel: HTMLElement, height: number, gap: number, list: any[], render
 
         div.innerHTML = "";
         for (let i = start; i <= end; i++) {
+            if (!list[i]) continue;
             let el = render(list[i]);
             div.append(el);
             el.style.height = i * (height + gap) + "px";
