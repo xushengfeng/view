@@ -196,6 +196,8 @@ function to_url(str: string) {
         return `https${str}`;
     } else if (str.match(/^[a-z]+:\/\//i)) {
         return str;
+    } else if (str.match(/^[0-9a-fA-F]{40}$/)) {
+        return `magnet:?xt=urn:btih:${str}`;
     } else {
         return `https://${str}`;
     }
