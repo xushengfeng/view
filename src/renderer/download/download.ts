@@ -39,3 +39,9 @@ function aria2(m: string, p: any[]) {
             .catch((e) => rj(e));
     });
 }
+
+let x = new URLSearchParams(location.search);
+
+if (x.get("url")) {
+    ipcRenderer.send("tab_view", "download", x.get("url"));
+}
