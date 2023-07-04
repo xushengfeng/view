@@ -14,6 +14,23 @@ function init_el() {
     });
 }
 
+document.getElementById("menu").onclick = (e) => {
+    let el = <HTMLElement>e.target;
+    if (el.tagName == "LI") {
+        let i = 0;
+        document
+            .getElementById("menu")
+            .querySelectorAll("li")
+            .forEach((lel, n) => {
+                if (lel == el) {
+                    i = n;
+                    return;
+                }
+            });
+        document.getElementsByTagName("html")[0].scrollTop = document.querySelectorAll("h1")[i].offsetTop;
+    }
+};
+
 import pack from "../../../package.json?raw";
 var package_json = JSON.parse(pack);
 document.getElementById("name").innerHTML = package_json.name;
