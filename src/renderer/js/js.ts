@@ -2,7 +2,7 @@
 
 const { ipcRenderer, clipboard } = require("electron") as typeof import("electron");
 const Store = require("electron-store") as typeof import("electron-store");
-import { setting } from "../../setting";
+import { setting } from "../../types";
 
 let setting = new Store().store as unknown as setting;
 

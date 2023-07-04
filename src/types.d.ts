@@ -15,3 +15,11 @@ export interface setting {
         };
     };
 }
+
+export interface DownloadItem {
+    id: number | string;
+    url: string;
+    filename: string;
+    status: "pending" | "downloading" | "completed";
+    createdAt: number;
+}

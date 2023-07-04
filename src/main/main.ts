@@ -22,7 +22,7 @@ import * as fs from "fs";
 import * as os from "os";
 import { t, lan } from "../../lib/translate/translate";
 import url from "node:url";
-import { setting } from "../setting";
+import { setting } from "../types";
 
 // 自定义用户路径
 try {

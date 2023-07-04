@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import { setting } from "../setting";
+import { setting } from "../types";
 
 contextBridge.exposeInMainWorld("electron", {});
 
