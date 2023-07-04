@@ -438,6 +438,14 @@ async function create_browser(window_name: number, url: string) {
         save_pic();
 
         tree_text_store.set(String(view_id), await wc.executeJavaScript("document.body.innerText"));
+
+        if (url.startsWith("view://download")) {
+            if (aria2_port) {
+                wc.send("download", "port", aria2_port);
+            } else {
+                wc.send("download", "port", await aria2_start());
+            }
+        }
     });
     wc.on("render-process-gone", () => {
         renderer_path(wc, "browser_bg.html", { query: { type: "render-process-gone" } });
