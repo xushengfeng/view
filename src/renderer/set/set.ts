@@ -3,6 +3,12 @@ import { t, lan } from "../../../lib/translate/translate";
 import { setting } from "../../types";
 let setting = new Store();
 
+lan(setting.get("lan"));
+document.body.innerHTML = document.body.innerHTML
+    .replace(/\{(.*?)\}/g, (_m, v) => t(v))
+    .replace(/<t>(.*?)<\/t>/g, (_m, v) => t(v));
+document.title = t(document.title);
+
 init_el();
 
 function init_el() {
