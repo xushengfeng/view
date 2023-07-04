@@ -22,7 +22,7 @@ import * as fs from "fs";
 import * as os from "os";
 import { t, lan } from "../../lib/translate/translate";
 import url from "node:url";
-import { setting } from "../types";
+import { setting, DownloadItem } from "../types";
 
 // 自定义用户路径
 try {
@@ -583,6 +583,8 @@ ipcMain.on("theme", (e, v) => {
     store.set("全局.深色模式", v);
 });
 
+let download_store = new Store({ name: "download" });
+
 let aria2_port = NaN;
 const aria2_f = path.join(run_path, "extra", process.platform, process.arch, "engine", "aria2c");
 const aria2_conf = path.join(run_path, "extra", process.platform, process.arch, "engine", "aria2.conf");
@@ -608,7 +610,7 @@ function aria2_start() {
 }
 
 function aria2(m: string, p: any[]) {
-    return new Promise((re, rj) => {
+    return new Promise((re: (v: any) => void, rj) => {
         fetch(`http://localhost:${aria2_port}/jsonrpc`, {
             method: "POST",
             headers: {
@@ -654,7 +656,11 @@ function check_global_aria2() {
 
 async function download(url: string) {
     if (!aria2_port) await aria2_start();
-    aria2("addUri", [[url]]);
+    aria2("addUri", [[url]]).then((x) => {
+        let l = (download_store.get("items") || []) as DownloadItem[];
+        l.unshift({ id: x.id, createdAt: new Date().getTime(), filename: "", status: "pending", url });
+        download_store.set("items", l);
+    });
     check_global_aria2_run = true;
     check_global_aria2();
 }
