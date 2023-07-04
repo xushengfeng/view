@@ -353,6 +353,7 @@ async function create_browser(window_name: number, url: string) {
         op.webPreferences.nodeIntegration = true;
         op.webPreferences.contextIsolation = false;
         op.webPreferences.webSecurity = false;
+        op.webPreferences.preload = null;
     }
 
     let search_view = new BrowserView(op);
