@@ -2,6 +2,8 @@ export interface setting {
     firstRun: boolean;
     settingVersion: string;
 
+    lan: string;
+
     appearance: {
         theme: "system" | "light" | "dark";
         size: {

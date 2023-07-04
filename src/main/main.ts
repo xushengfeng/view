@@ -85,6 +85,8 @@ function renderer_path(window: BrowserWindow | Electron.WebContents, file_name: 
     window.loadURL(renderer_url(file_name, q));
 }
 
+lan(store.get("lan"));
+
 app.commandLine.appendSwitch("enable-experimental-web-platform-features", "enable");
 
 app.whenReady().then(() => {
@@ -843,6 +845,8 @@ async function download(url: string) {
 var default_setting: setting = {
     firstRun: false,
     settingVersion: app.getVersion(),
+
+    lan: "zh-HANS",
 
     appearance: { theme: "system", size: { normal: { w: 800, h: 600, m: false } } },
 
