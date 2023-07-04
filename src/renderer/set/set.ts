@@ -1,7 +1,17 @@
+const Store = require("electron-store") as typeof import("electron-store");
 import { t, lan } from "../../../lib/translate/translate";
+import { setting } from "../../types";
+let setting = new Store();
+
+init_el();
 
 function init_el() {
-    document.body.querySelectorAll("[data-path]").forEach((el) => {});
+    document.body.querySelectorAll("[data-path]").forEach((el: HTMLInputElement) => {
+        el.value = setting.get(el.dataset.path) as string;
+        el.onchange = () => {
+            setting.set(el.dataset.path, el.value);
+        };
+    });
 }
 
 import pack from "../../../package.json?raw";
