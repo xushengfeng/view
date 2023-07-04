@@ -203,6 +203,16 @@ function to_url(str: string) {
     }
 }
 
+const download_url = "view://download";
+
+function to_more_url(url: string) {
+    if (url.match(/^magnet:?xt=urn:/)) {
+        return `${download_url}?url=${encodeURIComponent(url)}`;
+    } else {
+        return url;
+    }
+}
+
 let default_engine: string = "";
 let search_url: string = "";
 let suggestions_url: string = "";
@@ -222,7 +232,7 @@ function to_search_url(str: string) {
 let search_list: { url: string; text: string; icon: string }[] = [];
 function search(str: string) {
     search_list = [];
-    search_list.push({ url: to_url(str), text: `访问 ${to_url(str)}`, icon: browser_svg });
+    search_list.push({ url: to_more_url(str), text: `访问 ${to_url(str)}`, icon: browser_svg });
     search_list.push({ url: to_search_url(str), text: `搜索 ${str}`, icon: search_svg });
     fetch(suggestions_url.replace("%s", encodeURIComponent(str)))
         .then((j) => j.json())
