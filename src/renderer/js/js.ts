@@ -30,6 +30,9 @@ let pid = NaN;
 /** BrowserView id */
 let bview_id = NaN;
 
+let chrome_size: "normal" | "hide" | "full" = "normal";
+let chrome_size_fixed = false;
+
 /** 用户目录 */
 let userDataPath = "";
 
@@ -79,6 +82,13 @@ ipcRenderer.on("win", (e, a, arg) => {
             console.log(arg);
             // TODO show
             break;
+        case "chrome_toggle":
+            if (chrome_size == "hide") {
+                set_chrome_size("normal");
+            } else if (chrome_size == "normal") {
+                set_chrome_size("hide");
+            }
+            break;
     }
 });
 
@@ -112,6 +122,10 @@ show_tree.onclick = () => {
 buttons.append(b_back, b_forward, b_reload, show_tree);
 
 function set_chrome_size(type: "normal" | "hide" | "full") {
+    if (type == "hide" && chrome_size_fixed) {
+        type = "normal";
+    }
+    chrome_size = type;
     ipcRenderer.send("win", pid, `${type}_chrome`);
     if (type == "normal") {
         search_list_el.innerHTML = "";

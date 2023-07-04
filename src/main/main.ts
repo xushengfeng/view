@@ -225,6 +225,18 @@ app.whenReady().then(() => {
         {
             label: t("窗口"),
             submenu: [
+                {
+                    label: t("框架"),
+                    accelerator: "CmdOrCtrl+S",
+                    click(_i, w) {
+                        for (let i of main_window_l) {
+                            if (i[1] == w) {
+                                main_to_chrome.get(i[0]).view.webContents.send("win", "chrome_toggle");
+                                break;
+                            }
+                        }
+                    },
+                },
                 { label: t("最小化"), role: "minimize" },
                 { label: t("关闭"), role: "close" },
                 ...(isMac
@@ -461,7 +473,7 @@ ipcMain.on("win", (e, pid, type) => {
             main_to_chrome.get(pid).size = "normal";
             set_chrome_size(pid);
             break;
-        case "hide_chrrome":
+        case "hide_chrome":
             main_to_chrome.get(pid).size = "hide";
             set_chrome_size(pid);
             break;
