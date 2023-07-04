@@ -12,6 +12,7 @@ import {
     BrowserView,
     screen,
     desktopCapturer,
+    Menu,
     session,
 } from "electron";
 const Store = require("electron-store") as typeof import("electron-store");
@@ -95,6 +96,165 @@ app.whenReady().then(() => {
 
     // @ts-ignore
     nativeTheme.themeSource = store.get("appearance.theme");
+
+    const template = [
+        // { role: 'appMenu' }
+        ...(isMac
+            ? [
+                  {
+                      label: app.name,
+                      submenu: [
+                          { label: `${t("关于")} ${app.name}`, role: "about" },
+                          { type: "separator" },
+                          {
+                              label: t("设置"),
+                              click: () => {},
+                              accelerator: "CmdOrCtrl+,",
+                          },
+                          { type: "separator" },
+                          { label: t("服务"), role: "services" },
+                          { type: "separator" },
+                          { label: `${t("隐藏")} ${app.name}`, role: "hide" },
+                          { label: t("隐藏其他"), role: "hideOthers" },
+                          { label: t("全部显示"), role: "unhide" },
+                          { type: "separator" },
+                          { label: `退出 ${app.name}`, role: "quit" },
+                      ],
+                  },
+              ]
+            : []),
+        // { role: 'fileMenu' }
+        {
+            label: t("文件"),
+            submenu: [
+                ...(isMac
+                    ? []
+                    : [
+                          {
+                              label: t("设置"),
+                              click: () => {},
+                              accelerator: "CmdOrCtrl+,",
+                          },
+                          { type: "separator" },
+                      ]),
+                { type: "separator" },
+                { label: t("关闭"), role: "close" },
+            ],
+        },
+        // { role: 'editMenu' }
+        {
+            label: t("编辑"),
+            submenu: [
+                {
+                    label: t("撤销"),
+                    click: (_i, w) => {
+                        w.webContents.undo();
+                    },
+                    accelerator: "CmdOrCtrl+Z",
+                },
+                {
+                    label: t("重做"),
+                    click: (_i, w) => {
+                        w.webContents.redo();
+                    },
+                    accelerator: isMac ? "Cmd+Shift+Z" : "Ctrl+Y",
+                },
+                { type: "separator" },
+                {
+                    label: t("剪切"),
+                    click: (_i, w) => {
+                        w.webContents.cut();
+                    },
+                    accelerator: "CmdOrCtrl+X",
+                },
+                {
+                    label: t("复制"),
+                    click: (_i, w) => {
+                        w.webContents.copy();
+                    },
+                    accelerator: "CmdOrCtrl+C",
+                },
+                {
+                    label: t("粘贴"),
+                    click: (_i, w) => {
+                        w.webContents.paste();
+                    },
+                    accelerator: "CmdOrCtrl+V",
+                },
+                {
+                    label: t("删除"),
+                    click: (_i, w) => {
+                        w.webContents.delete();
+                    },
+                },
+                {
+                    label: t("全选"),
+                    click: (_i, w) => {
+                        w.webContents.selectAll();
+                    },
+                    accelerator: "CmdOrCtrl+A",
+                },
+                { type: "separator" },
+                ...(isMac
+                    ? [
+                          {
+                              label: t("朗读"),
+                              submenu: [
+                                  { label: t("开始朗读"), role: "startSpeaking" },
+                                  { label: t("停止朗读"), role: "stopSpeaking" },
+                              ],
+                          },
+                      ]
+                    : []),
+            ],
+        },
+        {
+            label: t("视图"),
+            submenu: [
+                { label: t("重新加载"), role: "reload" },
+                { label: t("强制重载"), role: "forceReload" },
+                { label: t("开发者工具"), role: "toggleDevTools" },
+                { label: t("实际大小"), role: "resetZoom", accelerator: "CmdOrCtrl+0" },
+                { label: t("放大"), role: "zoomIn", accelerator: "CmdOrCtrl+=" },
+                { label: t("缩小"), role: "zoomOut" },
+                { type: "separator" },
+                { label: t("全屏"), role: "togglefullscreen" },
+            ],
+        },
+        // { role: 'windowMenu' }
+        {
+            label: t("窗口"),
+            submenu: [
+                { label: t("最小化"), role: "minimize" },
+                { label: t("关闭"), role: "close" },
+                ...(isMac
+                    ? [
+                          { type: "separator" },
+                          { label: t("置于最前面"), role: "front" },
+                          { type: "separator" },
+                          { label: t("窗口"), role: "window" },
+                      ]
+                    : []),
+            ],
+        },
+        {
+            label: t("帮助"),
+            role: "help",
+            submenu: [
+                {
+                    label: t("教程帮助"),
+                    click: () => {},
+                },
+                { type: "separator" },
+                {
+                    label: t("关于"),
+                    click: () => {},
+                },
+            ],
+        },
+    ] as (Electron.MenuItemConstructorOptions | Electron.MenuItem)[];
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
 
     create_main_window();
 });
