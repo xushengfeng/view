@@ -178,10 +178,17 @@ ipcRenderer.on("url", (e, view, type, arg) => {
         case "new":
             now_view = view;
             views.push(view);
+            if (chrome_size != "full") set_chrome_size("normal");
             break;
         case "url":
             if (view == now_view) {
                 set_url(arg);
+            }
+            break;
+        case "load":
+            if (arg) {
+            } else {
+                if (chrome_size != "full" && !chrome_size_fixed) set_chrome_size("hide");
             }
             break;
     }
@@ -208,7 +215,7 @@ url_el.onpointerdown = (e) => {
     };
     url_i.onblur = () => {
         set_url(url_i.value);
-        set_chrome_size("normal");
+        set_chrome_size("hide");
     };
 };
 
@@ -423,7 +430,7 @@ function menu(params: Electron.ContextMenuParams) {
 menu_el.addEventListener("toggle", (e) => {
     // @ts-ignore
     if (e.newState == "closed") {
-        set_chrome_size("normal");
+        set_chrome_size("hide");
     }
 });
 
@@ -470,7 +477,7 @@ function render_site_permission_requ() {
         rj.innerText = "rj";
         al.onclick = () => {
             ipcRenderer.send("site_about", url, i, true);
-            set_chrome_size("normal");
+            set_chrome_size("hide");
             site_p_list.set(
                 url,
                 l.filter((x) => x != i)
@@ -478,7 +485,7 @@ function render_site_permission_requ() {
         };
         rj.onclick = () => {
             ipcRenderer.send("site_about", url, i, false);
-            set_chrome_size("normal");
+            set_chrome_size("hide");
             site_p_list.set(
                 url,
                 l.filter((x) => x != i)
@@ -493,7 +500,7 @@ function render_site_permission_requ() {
 site_about_el.addEventListener("toggle", (e) => {
     // @ts-ignore
     if (e.newState == "closed") {
-        set_chrome_size("normal");
+        set_chrome_size("hide");
         if (site_p_list.get(now_url).length != 0) {
             for (let i of site_p_list.get(now_url)) {
                 ipcRenderer.send("site_about", now_url, i, false);

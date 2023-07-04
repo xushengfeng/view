@@ -445,6 +445,7 @@ function set_chrome_size(pid: number) {
 
 ipcMain.on("win", (e, pid, type) => {
     console.log(pid, type);
+    if (!pid) return;
     let main_window = BrowserWindow.fromWebContents(e.sender);
     switch (type) {
         case "mini":
