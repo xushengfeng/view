@@ -2,6 +2,17 @@ export interface setting {
     firstRun: boolean;
     settingVersion: string;
 
+    appearance: {
+        theme: "system" | "light" | "dark";
+        size: {
+            normal: {
+                w: number;
+                h: number;
+                m: boolean;
+            };
+        };
+    };
+
     searchEngine: {
         default: string;
         engine: {

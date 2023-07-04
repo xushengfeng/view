@@ -87,14 +87,14 @@ function renderer_path(window: BrowserWindow | Electron.WebContents, file_name: 
 app.commandLine.appendSwitch("enable-experimental-web-platform-features", "enable");
 
 app.whenReady().then(() => {
-    if (store.get("首次运行") === undefined) set_default_setting();
+    if (store.get("firstRun") === undefined) set_default_setting();
     fix_setting_tree();
 
     // 初始化设置
     Store.initRenderer();
 
     // @ts-ignore
-    nativeTheme.themeSource = store.get("全局.深色模式");
+    nativeTheme.themeSource = store.get("appearance.theme");
 
     create_main_window();
 });
@@ -211,11 +211,11 @@ async function create_main_window() {
     main_to_search_l.set(window_name, []);
 
     main_window.on("close", () => {
-        store.set("主页面大小", [
-            main_window.getNormalBounds().width,
-            main_window.getNormalBounds().height,
-            main_window.isMaximized(),
-        ]);
+        store.set("appearance.size", {
+            w: main_window.getNormalBounds().width,
+            h: main_window.getNormalBounds().height,
+            m: main_window.isMaximized(),
+        });
         for (let i of main_window.getBrowserViews()) {
             // @ts-ignore
             i?.webContents?.destroy();
@@ -581,7 +581,7 @@ ipcMain.on("view", (_e, type, arg) => {
 
 ipcMain.on("theme", (e, v) => {
     nativeTheme.themeSource = v;
-    store.set("全局.深色模式", v);
+    store.set("appearance.theme", v);
 });
 
 let download_store = new Store({ name: "download" });
@@ -670,6 +670,8 @@ async function download(url: string) {
 var default_setting: setting = {
     firstRun: false,
     settingVersion: app.getVersion(),
+
+    appearance: { theme: "system", size: { normal: { w: 800, h: 600, m: false } } },
 
     searchEngine: {
         default: "Bing",
