@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import { setting } from "../setting";
 
 contextBridge.exposeInMainWorld("electron", {});
 
@@ -47,7 +48,8 @@ function get_opensearch() {
                         img: doc.querySelector("Image").textContent,
                         url: "",
                         sug: "",
-                    };
+                        from: "opensearch",
+                    } as setting["searchEngine"]["engine"][""];
                     doc.querySelectorAll("Url").forEach((el) => {
                         let type = el.getAttribute("type");
                         if (type == "text/html") {

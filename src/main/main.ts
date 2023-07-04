@@ -563,7 +563,9 @@ ipcMain.on("view", (_e, type, arg) => {
     switch (type) {
         case "opensearch":
             console.log(arg);
-            // TODO store
+            for (let i in arg) {
+                store.set(`searchEngine.engine.${i}`, arg[i]);
+            }
             break;
     }
 });
