@@ -122,31 +122,38 @@ let now_url = "about:blank";
 
 function set_url(url: string) {
     now_url = url;
-    let x = new URL(url);
-    if (location.href.split("/").slice(0, -1).join("/") == x.href.split("/").slice(0, -1).join("/")) {
-        x = new URL("view://" + x.pathname.split("/").at(-1).replace(".html", ""));
-    }
-    let hurl = x.toString();
-    let ss = 0,
-        se = hurl.length;
-    if (hurl.indexOf(".") != -1) {
-        ss = hurl.indexOf(".") + 1;
-    } else {
-        ss = hurl.indexOf("://") + 3;
-    }
-    for (let i = ss; i < hurl.length; i++) {
-        const element = hurl[i];
-        if (!element.match(/[a-zA-Z.]/)) {
-            se = i;
+    try {
+        let x = new URL(url);
+        if (location.href.split("/").slice(0, -1).join("/") == x.href.split("/").slice(0, -1).join("/")) {
+            x = new URL("view://" + x.pathname.split("/").at(-1).replace(".html", ""));
         }
+        let hurl = x.toString();
+        let ss = 0,
+            se = hurl.length;
+        if (hurl.indexOf(".") != -1) {
+            ss = hurl.indexOf(".") + 1;
+        } else {
+            ss = hurl.indexOf("://") + 3;
+        }
+        for (let i = ss; i < hurl.length; i++) {
+            const element = hurl[i];
+            if (!element.match(/[a-zA-Z.]/)) {
+                se = i;
+            }
+        }
+        let l0 = hurl.slice(0, ss);
+        let h = hurl.slice(ss, se);
+        let l1 = hurl.slice(se);
+        let m = document.createElement("span");
+        m.innerText = h;
+        url_el.innerHTML = "";
+        url_el.append(l0, m, l1);
+    } catch (error) {
+        let m = document.createElement("span");
+        m.innerText = url;
+        url_el.innerHTML = "";
+        url_el.append(m);
     }
-    let l0 = hurl.slice(0, ss);
-    let h = hurl.slice(ss, se);
-    let l1 = hurl.slice(se);
-    let m = document.createElement("span");
-    m.innerText = h;
-    url_el.innerHTML = "";
-    url_el.append(l0, m, l1);
 }
 
 let views = [];
