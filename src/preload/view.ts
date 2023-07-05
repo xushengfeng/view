@@ -86,7 +86,18 @@ ipcRenderer.on("view_event", (_e, type, arg) => {
     }
 });
 
+let prect = { x: 0, y: 0 };
+window.addEventListener("message", (m) => {
+    if (m.data.x && m.data.y) {
+        prect.x = m.data.X;
+        prect.y = m.data.y;
+    }
+});
+
 function inputx() {
+    document.querySelectorAll("iframe").forEach((el) => {
+        el.contentWindow.postMessage(el.getBoundingClientRect(), "*");
+    });
     let forml = [];
     // 密码
     document.querySelectorAll("from").forEach((fel) => {
@@ -101,9 +112,12 @@ function inputx() {
                 ipcRenderer.send("view", "input", { action: "blur", ...l });
             });
             iel.addEventListener("focus", () => {
+                let r = iel.getBoundingClientRect();
+                r.x += prect.x;
+                r.y += prect.y;
                 ipcRenderer.send("view", "input", {
                     action: "focus",
-                    position: iel.getBoundingClientRect().toJSON(),
+                    position: r.toJSON(),
                     type: iel.type,
                     value: iel.value,
                 });
@@ -119,6 +133,9 @@ function inputx() {
             console.log(iel);
 
             iel.addEventListener("focus", () => {
+                let r = iel.getBoundingClientRect();
+                r.x += prect.x;
+                r.y += prect.y;
                 if (iel.list) {
                     let list = [];
                     iel.list.querySelectorAll("option").forEach((op) => {
@@ -126,7 +143,7 @@ function inputx() {
                     });
                     ipcRenderer.send("view", "input", {
                         action: "focus",
-                        position: iel.getBoundingClientRect().toJSON(),
+                        position: r.toJSON(),
                         type: "list",
                         list,
                     });
@@ -135,7 +152,7 @@ function inputx() {
                         // TODO 默认补全与否
                         ipcRenderer.send("view", "input", {
                             action: "focus",
-                            position: iel.getBoundingClientRect().toJSON(),
+                            position: r.toJSON(),
                             autocomplete: iel.autocomplete,
                         });
                     }
