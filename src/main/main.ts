@@ -365,6 +365,7 @@ var main_window_l: Map<bwin_id, BrowserWindow> = new Map();
 var main_to_search_l: Map<bwin_id, view_id[]> = new Map();
 var main_to_chrome: Map<bwin_id, { view: BrowserView; size: "normal" | "hide" | "full" }> = new Map();
 var search_window_l: Map<view_id, BrowserView> = new Map();
+var main_to_passwd: Map<BrowserWindow, BrowserView> = new Map();
 
 // 窗口
 async function create_main_window() {
@@ -521,6 +522,7 @@ async function create_browser(window_name: number, url: string) {
 
     let op: Electron.BrowserViewConstructorOptions = {
         webPreferences: {
+            nodeIntegrationInSubFrames: true,
             preload: path.join(__dirname, "../preload", "view.js"),
         },
     };
@@ -743,7 +745,8 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
     }
 });
 
-ipcMain.on("view", (_e, type, arg) => {
+ipcMain.on("view", (e, type, arg) => {
+    let main_window = BrowserWindow.fromWebContents(e.sender);
     switch (type) {
         case "opensearch":
             console.log(arg);
@@ -751,6 +754,35 @@ ipcMain.on("view", (_e, type, arg) => {
                 store.set(`searchEngine.engine.${i}`, arg[i]);
             }
             break;
+        case "input":
+            console.log(arg);
+
+            if (arg.action == "focus") {
+                let bv = new BrowserView();
+                main_window.addBrowserView(bv);
+                let r = arg.position as DOMRect;
+                const w = 100,
+                    h = 100;
+                bv.setBounds({
+                    width: w,
+                    height: h,
+                    x: Math.floor(Math.min(main_window.getBounds().width - w, r.x)),
+                    y: Math.floor(Math.min(main_window.getBounds().height - h, r.y)),
+                });
+                renderer_path(bv.webContents, "passwd.html");
+                main_to_passwd.set(main_window, bv);
+                bv.webContents.on("did-finish-load", () => {
+                    bv.webContents.send("input", arg);
+                });
+                if (dev) bv.webContents.openDevTools();
+            } else {
+                let bv = main_to_passwd.get(main_window);
+                if (bv) {
+                    main_window.removeBrowserView(bv);
+                    bv.webContents.close();
+                    main_to_passwd.delete(main_window);
+                }
+            }
     }
 });
 

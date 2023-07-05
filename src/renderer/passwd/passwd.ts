@@ -1,3 +1,9 @@
+import { ipcRenderer } from "electron";
+
+ipcRenderer.on("input", (_e, arg) => {
+    console.log(arg);
+});
+
 function new_passwd(
     length: number,
     includeUpperCase: boolean,
