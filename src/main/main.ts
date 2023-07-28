@@ -357,10 +357,10 @@ function get_size(w: number, h: number) {
 }
 
 /** BrowserWindow id */
-type bwin_id = number;
+type bwin_id = number & { readonly __tag: unique symbol };
 // 一个browserview对应一个id，不存在history
 /** 网页id（包括在同一页面跳转的） */
-type view_id = number;
+type view_id = number & { readonly __tag: unique symbol };
 var main_window_l: Map<bwin_id, BrowserWindow> = new Map();
 var main_to_search_l: Map<bwin_id, view_id[]> = new Map();
 var main_to_chrome: Map<bwin_id, { view: BrowserView; size: "normal" | "hide" | "full" }> = new Map();
@@ -369,7 +369,7 @@ var main_to_passwd: Map<BrowserWindow, BrowserView> = new Map();
 
 // 窗口
 async function create_main_window() {
-    const window_name = new Date().getTime();
+    const window_name = new Date().getTime() as bwin_id;
     let main_window = new BrowserWindow({
         backgroundColor: nativeTheme.shouldUseDarkColors ? "#0f0f0f" : "#ffffff",
         icon: the_icon,
@@ -439,7 +439,7 @@ async function create_main_window() {
     return window_name;
 }
 
-function set_chrome_size(pid: number) {
+function set_chrome_size(pid: bwin_id) {
     let main_window = main_window_l.get(pid);
     let x = main_to_chrome.get(pid);
     let o = { full: main_window.getContentSize()[1], normal: 24, hide: 0 };
@@ -485,7 +485,7 @@ ipcMain.on("win", (e, pid, type) => {
 });
 
 type tree = {
-    [id: view_id]: {
+    [id in view_id | "0"]: {
         url: string;
         title: string;
         logo: string;
@@ -511,12 +511,12 @@ function get_real_url(url: string) {
 }
 
 /** 创建浏览器页面 */
-async function create_browser(window_name: number, url: string) {
+async function create_browser(window_name: bwin_id, url: string) {
     let main_window = main_window_l.get(window_name);
     let chrome = main_to_chrome.get(window_name).view;
 
     if (main_window.isDestroyed()) return;
-    let view_id: view_id = new Date().getTime();
+    let view_id = new Date().getTime() as view_id;
 
     tree_store.set(String(view_id), { logo: "", url: url, title: "" });
 
