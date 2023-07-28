@@ -27,6 +27,24 @@ export interface setting {
             };
         };
     };
+
+    windows: {
+        // 桌面背景
+        desktop: {
+            screenId: string;
+            id: string;
+            url: string;
+        }[];
+        // 小组件
+        fixed: {
+            id: string;
+            left: number;
+            top: number;
+            width: number;
+            height: number;
+            url: string;
+        }[];
+    };
 }
 
 export interface DownloadItem {

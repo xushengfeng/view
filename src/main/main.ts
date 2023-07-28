@@ -915,6 +915,7 @@ var default_setting: setting = {
             },
         },
     },
+    windows: { desktop: [], fixed: [] },
 };
 
 function set_default_setting() {
