@@ -271,6 +271,8 @@ app.whenReady().then(() => {
     Menu.setApplicationMenu(menu);
 
     create_main_window();
+
+    check_window();
 });
 
 app.on("will-quit", () => {
@@ -871,6 +873,63 @@ async function download(url: string) {
     });
     check_global_aria2_run = true;
     check_global_aria2();
+}
+
+function check_window() {
+    let w = store.get("windows") as setting["windows"];
+    for (let i of w.desktop) {
+        showDesktop(i);
+    }
+    for (let i of w.fixed) {
+        showItem(i);
+    }
+}
+
+function showDesktop(d: setting["windows"]["desktop"][0]) {
+    let se = screen.getAllDisplays().find((x) => x.id === d.screenId) || screen.getPrimaryDisplay();
+    let isWin32 = process.platform === "win32";
+    let wi = new BrowserWindow({
+        fullscreen: true,
+        autoHideMenuBar: true,
+        ...(isWin32 ? {} : { type: "desktop" }),
+    });
+    wi.setBounds(se.bounds);
+    wi.loadURL(d.url);
+    if (isWin32) {
+        const { attach } = require("electron-as-wallpaper");
+        attach(wi, {
+            forwardKeyboardInput: true,
+            forwardMouseInput: true,
+        });
+    }
+}
+
+function showItem(i: setting["windows"]["fixed"][0]) {
+    function getSize(S: string, a: "x" | "y" | "w" | "h", root?: number | null) {
+        let se = screen.getAllDisplays().find((x) => x.id === root);
+        if (S.includes("px")) {
+            if (a === "x") {
+                return parseInt(S.replace("px", "")) + (se?.bounds?.x | 0);
+            } else if (a === "y") {
+                return parseInt(S.replace("px", "")) + (se?.bounds?.y | 0);
+            } else {
+                return parseInt(S.replace("px", ""));
+            }
+        }
+    }
+    let wi = new BrowserWindow({
+        width: getSize(i.width, "w", i.root),
+        height: getSize(i.height, "h", i.root),
+        x: getSize(i.left, "x", i.root),
+        y: getSize(i.top, "x", i.root),
+        frame: false,
+        skipTaskbar: true,
+    });
+    wi.loadURL(i.url);
+    if (i.onTop) {
+        wi.setAlwaysOnTop(true);
+    }
+    wi.setResizable(false);
 }
 
 // 默认设置

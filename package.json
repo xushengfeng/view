@@ -17,6 +17,7 @@
     "homepage": "https://github.com/xushengfeng/view/",
     "license": "GPL-3.0",
     "dependencies": {
+        "electron-as-wallpaper": "^1.0.3",
         "electron-store": "^8.1.0"
     },
     "devDependencies": {
