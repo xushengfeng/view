@@ -269,19 +269,11 @@ function r_search_l() {
         let el = create_div();
         let icon_el = create_div();
         let text = create_div();
-        let url_add = create_div();
         el.setAttribute("data-url", i.url);
         text.innerText = i.text;
         icon_el.innerHTML = icon(i.icon);
-        url_add.innerHTML = icon(add_svg);
-        el.append(icon_el, text, url_add);
+        el.append(icon_el, text);
         el.onpointerdown = (e) => {
-            if (e.target != url_add) {
-                ipcRenderer.send("tab_view", null, "add", i.url);
-                set_chrome_size("normal");
-            }
-        };
-        url_add.onpointerdown = () => {
             ipcRenderer.send("tab_view", null, "add", i.url);
             set_chrome_size("normal");
         };
