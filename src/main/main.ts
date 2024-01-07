@@ -6,12 +6,9 @@ import {
     BrowserWindow,
     ipcMain,
     dialog,
-    shell,
-    nativeImage,
     nativeTheme,
     BrowserView,
     screen,
-    desktopCapturer,
     Menu,
     session,
 } from "electron";
@@ -20,7 +17,6 @@ import * as path from "path";
 const run_path = path.join(path.resolve(__dirname, ""), "../../");
 import { spawn, exec } from "child_process";
 import * as fs from "fs";
-import * as os from "os";
 import { t, lan } from "../../lib/translate/translate";
 import url from "node:url";
 import { setting, DownloadItem } from "../types";
@@ -231,9 +227,9 @@ app.whenReady().then(() => {
                     label: t("框架"),
                     accelerator: "CmdOrCtrl+S",
                     click(_i, w) {
-                        for (let i of main_window_l) {
+                        for (let i of winL) {
                             if (i[1] == w) {
-                                main_to_chrome.get(i[0]).view.webContents.send("win", "chrome_toggle");
+                                winToChrome.get(i[0]).view.webContents.send("win", "chrome_toggle");
                                 break;
                             }
                         }
@@ -270,7 +266,7 @@ app.whenReady().then(() => {
     const menu = Menu.buildFromTemplate(template);
     Menu.setApplicationMenu(menu);
 
-    create_main_window();
+    createWin();
 
     check_window();
 });
@@ -363,14 +359,15 @@ type bwin_id = number & { readonly __tag: unique symbol };
 // 一个browserview对应一个id，不存在history
 /** 网页id（包括在同一页面跳转的） */
 type view_id = number & { readonly __tag: unique symbol };
-var main_window_l: Map<bwin_id, BrowserWindow> = new Map();
-var main_to_search_l: Map<bwin_id, view_id[]> = new Map();
-var main_to_chrome: Map<bwin_id, { view: BrowserView; size: "normal" | "hide" | "full" }> = new Map();
-var search_window_l: Map<view_id, BrowserView> = new Map();
-var main_to_passwd: Map<BrowserWindow, BrowserView> = new Map();
+var winL: Map<bwin_id, BrowserWindow> = new Map();
+// 不同的view分配到窗口
+var winToViewl: Map<bwin_id, view_id[]> = new Map();
+var winToChrome: Map<bwin_id, { view: BrowserView; size: "normal" | "hide" | "full" }> = new Map();
+var viewL: Map<view_id, BrowserView> = new Map();
+var winToPasswd: Map<BrowserWindow, BrowserView> = new Map();
 
 // 窗口
-async function create_main_window() {
+async function createWin() {
     const window_name = new Date().getTime() as bwin_id;
     let main_window = new BrowserWindow({
         backgroundColor: nativeTheme.shouldUseDarkColors ? "#0f0f0f" : "#ffffff",
@@ -383,9 +380,9 @@ async function create_main_window() {
         frame: false,
         show: true,
     }) as BrowserWindow & { html: string };
-    main_window_l.set(window_name, main_window);
+    winL.set(window_name, main_window);
 
-    main_to_search_l.set(window_name, []);
+    winToViewl.set(window_name, []);
 
     main_window.on("close", () => {
         store.set("appearance.size", {
@@ -400,7 +397,7 @@ async function create_main_window() {
     });
 
     main_window.on("closed", () => {
-        main_window_l.delete(window_name);
+        winL.delete(window_name);
     });
 
     // 浏览器大小适应
@@ -431,7 +428,7 @@ async function create_main_window() {
     renderer_path(chrome.webContents, "frame.html");
     if (dev) chrome.webContents.openDevTools();
     main_window.addBrowserView(chrome);
-    main_to_chrome.set(window_name, { view: chrome, size: "normal" });
+    winToChrome.set(window_name, { view: chrome, size: "normal" });
     set_chrome_size(window_name);
     chrome.webContents.on("did-finish-load", () => {
         chrome.webContents.send("win", "id", window_name);
@@ -442,8 +439,8 @@ async function create_main_window() {
 }
 
 function set_chrome_size(pid: bwin_id) {
-    let main_window = main_window_l.get(pid);
-    let x = main_to_chrome.get(pid);
+    let main_window = winL.get(pid);
+    let x = winToChrome.get(pid);
     let o = { full: main_window.getContentSize()[1], normal: 24, hide: 0 };
     x.view.setBounds({ x: 0, y: 0, width: main_window.getContentSize()[0], height: o[x.size] });
 }
@@ -465,22 +462,23 @@ ipcMain.on("win", (e, pid, type) => {
             break;
         case "close":
             main_window.close();
-            main_window_l.delete(pid);
-            for (let i of main_to_search_l.get(pid)) {
-                search_window_l.delete(i);
+            winL.delete(pid);
+            for (let i of winToViewl.get(pid)) {
+                viewL.delete(i);
             }
-            main_to_chrome.delete(pid);
+            winToViewl.delete(pid);
+            winToChrome.delete(pid);
             break;
         case "full_chrome":
-            main_to_chrome.get(pid).size = "full";
+            winToChrome.get(pid).size = "full";
             set_chrome_size(pid);
             break;
         case "normal_chrome":
-            main_to_chrome.get(pid).size = "normal";
+            winToChrome.get(pid).size = "normal";
             set_chrome_size(pid);
             break;
         case "hide_chrome":
-            main_to_chrome.get(pid).size = "hide";
+            winToChrome.get(pid).size = "hide";
             set_chrome_size(pid);
             break;
     }
@@ -513,9 +511,9 @@ function get_real_url(url: string) {
 }
 
 /** 创建浏览器页面 */
-async function create_browser(window_name: bwin_id, url: string) {
-    let main_window = main_window_l.get(window_name);
-    let chrome = main_to_chrome.get(window_name).view;
+async function createView(window_name: bwin_id, url: string) {
+    let main_window = winL.get(window_name);
+    let chrome = winToChrome.get(window_name).view;
 
     if (main_window.isDestroyed()) return;
     let view_id = new Date().getTime() as view_id;
@@ -536,7 +534,7 @@ async function create_browser(window_name: bwin_id, url: string) {
     }
 
     let search_view = new BrowserView(op);
-    search_window_l.set(view_id, search_view);
+    viewL.set(view_id, search_view);
     main_window.addBrowserView(search_view);
     main_window.setTopBrowserView(chrome);
     const wc = search_view.webContents;
@@ -547,7 +545,7 @@ async function create_browser(window_name: bwin_id, url: string) {
     main_window.setContentSize(w, h + 1);
     main_window.setContentSize(w, h);
     wc.setWindowOpenHandler(({ url }) => {
-        create_browser(window_name, url).then((id) => {
+        createView(window_name, url).then((id) => {
             let l = (tree_store.get(`${view_id}.next`) as tree[0]["next"]) || [];
             l.push({ id, new: true });
             tree_store.set(`${view_id}.next`, l);
@@ -559,7 +557,7 @@ async function create_browser(window_name: bwin_id, url: string) {
     if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "new", url);
     wc.on("destroyed", () => {
         main_window.removeBrowserView(search_view);
-        search_window_l.delete(view_id);
+        viewL.delete(view_id);
     });
     wc.on("page-title-updated", (event, title) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "title", title);
@@ -570,7 +568,7 @@ async function create_browser(window_name: bwin_id, url: string) {
         tree_store.set(`${view_id}.logo`, favlogo[0]);
     });
     wc.on("will-navigate", (event) => {
-        create_browser(window_name, event.url).then((id) => {
+        createView(window_name, event.url).then((id) => {
             let l = (tree_store.get(`${view_id}.next`) as tree[0]["next"]) || [];
             l.push({ id, new: false });
             tree_store.set(`${view_id}.next`, l);
@@ -669,7 +667,7 @@ async function create_browser(window_name: bwin_id, url: string) {
     });
 
     wc.on("devtools-open-url", (_e, url) => {
-        create_browser(window_name, url).then((id) => {
+        createView(window_name, url).then((id) => {
             let l = (tree_store.get(`0.next`) as tree[0]["next"]) || [];
             l.push({ id, new: true });
             tree_store.set(`0.next`, l);
@@ -691,7 +689,7 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
     console.log(arg);
 
     let main_window = BrowserWindow.fromWebContents(e.sender);
-    let search_window = search_window_l.get(id);
+    let search_window = viewL.get(id);
     switch (arg) {
         case "close":
             search_window.webContents.close();
@@ -703,9 +701,9 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
             search_window.webContents.reload();
             break;
         case "add":
-            main_window_l.forEach((w, id) => {
+            winL.forEach((w, id) => {
                 if (w == main_window) {
-                    create_browser(id, arg2).then((id) => {
+                    createView(id, arg2).then((id) => {
                         let l = (tree_store.get(`0.next`) as tree[0]["next"]) || [];
                         l.push({ id, new: true });
                         tree_store.set(`0.next`, l);
@@ -713,18 +711,15 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
                 }
             });
             break;
-        case "change":
-            search_window.webContents.loadURL(arg2);
-            break;
         case "switch":
             // 获取BrowserWindow并提升bview
-            main_to_search_l.forEach((bvs, id) => {
+            winToViewl.forEach((bvs, id) => {
                 for (let i of bvs) {
                     if (i == arg2) {
-                        main_window_l.get(id).setTopBrowserView(search_window_l.get(i));
-                        main_window_l.get(id).setTopBrowserView(main_to_chrome.get(id).view);
-                        main_window_l.get(id).moveTop();
-                        main_window_l.get(id).focus();
+                        winL.get(id).setTopBrowserView(viewL.get(i));
+                        winL.get(id).setTopBrowserView(winToChrome.get(id).view);
+                        winL.get(id).moveTop();
+                        winL.get(id).focus();
                     }
                 }
             });
@@ -766,17 +761,17 @@ ipcMain.on("view", (e, type, arg) => {
                     y: Math.floor(Math.min(main_window.getBounds().height - h, r.y)),
                 });
                 renderer_path(bv.webContents, "passwd.html");
-                main_to_passwd.set(main_window, bv);
+                winToPasswd.set(main_window, bv);
                 bv.webContents.on("did-finish-load", () => {
                     bv.webContents.send("input", arg);
                 });
                 if (dev) bv.webContents.openDevTools();
             } else {
-                let bv = main_to_passwd.get(main_window);
+                let bv = winToPasswd.get(main_window);
                 if (bv) {
                     main_window.removeBrowserView(bv);
                     bv.webContents.close();
-                    main_to_passwd.delete(main_window);
+                    winToPasswd.delete(main_window);
                 }
             }
     }
@@ -851,7 +846,7 @@ function check_global_aria2() {
             for (let i of wl) {
                 t += i.totalLength;
             }
-            for (let i of main_window_l.values()) {
+            for (let i of winL.values()) {
                 i.setProgressBar(has / t);
             }
         }

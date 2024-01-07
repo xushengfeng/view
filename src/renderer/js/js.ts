@@ -271,26 +271,20 @@ function r_search_l() {
         let el = create_div();
         let icon_el = create_div();
         let text = create_div();
-        let url_change = create_div();
         let url_add = create_div();
         el.setAttribute("data-url", i.url);
         text.innerText = i.text;
         icon_el.innerHTML = icon(i.icon);
         url_add.innerHTML = icon(add_svg);
-        url_change.innerHTML = icon(right_svg);
-        el.append(icon_el, text, url_add, url_change);
+        el.append(icon_el, text, url_add);
         el.onpointerdown = (e) => {
-            if (e.target != url_change && e.target != url_add) {
+            if (e.target != url_add) {
                 ipcRenderer.send("tab_view", null, "add", i.url);
                 set_chrome_size("normal");
             }
         };
         url_add.onpointerdown = () => {
             ipcRenderer.send("tab_view", null, "add", i.url);
-            set_chrome_size("normal");
-        };
-        url_change.onpointerdown = () => {
-            ipcRenderer.send("tab_view", bview_id, "change", i.url);
             set_chrome_size("normal");
         };
         search_list_el.append(el);
