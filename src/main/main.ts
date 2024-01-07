@@ -696,12 +696,6 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
         case "close":
             search_window.webContents.close();
             break;
-        case "back":
-            search_window.webContents.goBack();
-            break;
-        case "forward":
-            search_window.webContents.goForward();
-            break;
         case "stop":
             search_window.webContents.stop();
             break;

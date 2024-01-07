@@ -47,9 +47,11 @@ w_max.innerHTML = icon(maximize_svg);
 w_close.innerHTML = icon(close_svg);
 w_mini.onclick = () => {
     ipcRenderer.send("win", pid, "mini");
+    set_chrome_size("hide");
 };
 w_max.onclick = () => {
     ipcRenderer.send("win", pid, "max");
+    set_chrome_size("hide");
 };
 w_close.onclick = () => {
     ipcRenderer.send("win", pid, "close");
@@ -95,22 +97,11 @@ ipcRenderer.on("win", (e, a, arg) => {
 let buttons = document.getElementById("buttoms");
 let url_el = document.getElementById("url");
 
-let b_back = document.createElement("div");
-b_back.innerHTML = icon(left_svg);
-b_back.onclick = () => {
-    ipcRenderer.send("tab_view", "back");
-};
-
-let b_forward = document.createElement("div");
-b_forward.innerHTML = icon(right_svg);
-b_forward.onclick = () => {
-    ipcRenderer.send("tab_view", "forward");
-};
-
 let b_reload = document.createElement("div");
 b_reload.innerHTML = icon(reload_svg);
 b_reload.onclick = () => {
     ipcRenderer.send("tab_view", "reload");
+    set_chrome_size("hide");
 };
 
 let show_tree = document.createElement("div");
@@ -119,7 +110,7 @@ show_tree.onclick = () => {
     set_chrome_size("full");
 };
 
-buttons.append(b_back, b_forward, b_reload, show_tree);
+buttons.append(b_reload, show_tree);
 
 function set_chrome_size(type: "normal" | "hide" | "full") {
     if (type == "hide" && chrome_size_fixed) {
