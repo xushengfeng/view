@@ -489,7 +489,7 @@ type tree = {
         url: string;
         title: string;
         logo: string;
-        next?: { new: boolean; id: view_id }[];
+        next?: view_id[];
     };
 };
 
@@ -511,7 +511,7 @@ function get_real_url(url: string) {
 }
 
 /** 创建浏览器页面 */
-async function createView(window_name: bwin_id, url: string) {
+async function createView(window_name: bwin_id, url: string, record: boolean, root: boolean) {
     let main_window = winL.get(window_name);
     let chrome = winToChrome.get(window_name).view;
 
@@ -545,10 +545,11 @@ async function createView(window_name: bwin_id, url: string) {
     main_window.setContentSize(w, h + 1);
     main_window.setContentSize(w, h);
     wc.setWindowOpenHandler(({ url }) => {
-        createView(window_name, url).then((id) => {
+        createView(window_name, url, true, !record).then((id) => {
             let l = (tree_store.get(`${view_id}.next`) as tree[0]["next"]) || [];
-            l.push({ id, new: true });
+            l.push(id);
             tree_store.set(`${view_id}.next`, l);
+            if (root) tree_store.set(`0.next`, l);
         });
         return { action: "deny" };
     });
@@ -568,10 +569,11 @@ async function createView(window_name: bwin_id, url: string) {
         tree_store.set(`${view_id}.logo`, favlogo[0]);
     });
     wc.on("will-navigate", (event) => {
-        createView(window_name, event.url).then((id) => {
+        createView(window_name, event.url, true, !record).then((id) => {
             let l = (tree_store.get(`${view_id}.next`) as tree[0]["next"]) || [];
-            l.push({ id, new: false });
+            l.push(id);
             tree_store.set(`${view_id}.next`, l);
+            if (root) tree_store.set(`0.next`, l);
         });
         event.preventDefault();
     });
@@ -667,10 +669,9 @@ async function createView(window_name: bwin_id, url: string) {
     });
 
     wc.on("devtools-open-url", (_e, url) => {
-        createView(window_name, url).then((id) => {
+        createView(window_name, url, record, false).then((id) => {
             let l = (tree_store.get(`0.next`) as tree[0]["next"]) || [];
-            l.push({ id, new: true });
-            tree_store.set(`0.next`, l);
+            l.push(id);
         });
     });
 
@@ -703,9 +704,9 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
         case "add":
             winL.forEach((w, id) => {
                 if (w == main_window) {
-                    createView(id, arg2).then((id) => {
+                    createView(id, arg2, true, true).then((id) => {
                         let l = (tree_store.get(`0.next`) as tree[0]["next"]) || [];
-                        l.push({ id, new: true });
+                        l.push(id);
                         tree_store.set(`0.next`, l);
                     });
                 }

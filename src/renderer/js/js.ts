@@ -185,8 +185,6 @@ ipcRenderer.on("url", (e, view, type, arg) => {
     }
 });
 
-ipcRenderer.send("tab_view", null, "add", "https://www.bing.com");
-
 let search_list_el = document.getElementById("search_list");
 let url_i: HTMLInputElement;
 url_el.onpointerdown = (e) => {
@@ -298,7 +296,7 @@ type tree = {
         url: string;
         title: string;
         logo: string;
-        next?: { new: boolean; id: number }[];
+        next?: number[];
     };
 };
 

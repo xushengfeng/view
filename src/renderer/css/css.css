@@ -71,6 +71,7 @@ body {
     color: var(--text-color1);
     white-space: pre;
     overflow: scroll;
+    height: 1rem;
 }
 
 #url::-webkit-scrollbar {
@@ -144,9 +145,8 @@ body {
     display: flex;
 }
 
-#status_bar{
+#status_bar {
     background-color: var(--bg);
     backdrop-filter: var(--blur);
     border-radius: var(--border-r);
-
 }
