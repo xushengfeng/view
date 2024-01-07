@@ -721,6 +721,7 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
                         winL.get(id).setTopBrowserView(winToChrome.get(id).view);
                         winL.get(id).moveTop();
                         winL.get(id).focus();
+                        return;
                     }
                 }
             });

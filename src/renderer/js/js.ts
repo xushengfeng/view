@@ -301,6 +301,8 @@ function create_card(id: number) {
     let title = document.createElement("div");
     let img = document.createElement("img");
 
+    title.innerText = tree[id].title;
+
     img.src = `file://${userDataPath}/capture/${id}.jpg`;
 
     img.onclick = () => {
@@ -309,16 +311,26 @@ function create_card(id: number) {
         }
     };
 
-    x.append(img);
+    x.append(bar, title, img);
+
+    if (tree[id].next) {
+        let childrenEl = document.createElement("div");
+        for (let i of tree[id].next) {
+            let child = create_card(i);
+            childrenEl.append(child);
+        }
+        x.append(childrenEl);
+    }
 
     return x;
 }
 
 function render_tree() {
     console.log(tree);
-
-    for (let i in tree) {
-        let x = create_card(Number(i));
+    let root = tree[0].next.toReversed();
+    // TODO 虚拟列表
+    for (let i = 0; i < 5; i++) {
+        let x = create_card(root[i]);
         tree_el.append(x);
     }
 }
