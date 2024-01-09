@@ -27,8 +27,6 @@ function create_div() {
 
 /** browserwindow id */
 let pid = NaN;
-/** BrowserView id */
-let bview_id = NaN;
 
 let chrome_size: "normal" | "hide" | "full" = "normal";
 let chrome_size_fixed = false;
@@ -69,9 +67,6 @@ ipcRenderer.on("win", (e, a, arg) => {
             break;
         case "id":
             pid = arg;
-            break;
-        case "bview_id":
-            bview_id = arg;
             break;
         case "userData":
             userDataPath = arg;
@@ -161,18 +156,20 @@ function set_url(url: string) {
     }
 }
 
-let views = [];
-let now_view = NaN;
+let activeViews = [];
+let myViews = [];
+let topestView = NaN;
 
 ipcRenderer.on("url", (e, view, type, arg) => {
     switch (type) {
         case "new":
-            now_view = view;
-            views.push(view);
+            topestView = view;
+            activeViews.push(view);
+            myViews.push(view);
             if (chrome_size != "full") set_chrome_size("normal");
             break;
         case "url":
-            if (view == now_view) {
+            if (view == topestView) {
                 set_url(arg);
             }
             break;
@@ -301,13 +298,16 @@ function create_card(id: number) {
     let title = document.createElement("div");
     let img = document.createElement("img");
 
+    x.setAttribute("data-id", id.toString());
+
     title.innerText = tree[id].title;
 
     img.src = `file://${userDataPath}/capture/${id}.jpg`;
 
     img.onclick = () => {
-        if (views.includes(id)) {
+        if (activeViews.includes(id)) {
             ipcRenderer.send("tab_view", null, "switch", id);
+            topestView = id;
         }
     };
 
@@ -336,6 +336,50 @@ function render_tree() {
 }
 
 window["r"] = render_tree;
+
+// 同步树状态，一般由其他窗口发出
+ipcRenderer.on("view", (e, type: "add" | "close" | "update" | "move", id: number, pid: number, wid: number, op) => {
+    switch (type) {
+        case "add":
+            cardAdd(id, pid);
+            break;
+        case "close":
+            cardClose(id);
+            break;
+        case "update":
+            cardUpdata(id, op);
+            break;
+        case "move":
+            cardMove(id, wid);
+            break;
+        default:
+            break;
+    }
+});
+
+function getCardById(id: number) {
+    return document.querySelector(`div[data-id="${id}"]`);
+}
+
+function cardAdd(id: number, parent: number) {
+    activeViews.push(id);
+    let pCardEl = getCardById(parent);
+    if (pCardEl) {
+        let x = create_card(id);
+    }
+}
+
+function cardClose(id: number) {
+    activeViews = activeViews.filter((x) => x != id);
+}
+
+function cardUpdata(id: number, op: { url?: string; title?: string; icon?: string; cover?: string }) {}
+
+function cardMove(id: number, newParent: number) {
+    if (newParent === pid) {
+        myViews.push(id);
+    }
+}
 
 const menu_el = document.getElementById("menu");
 function menu(params: Electron.ContextMenuParams) {
@@ -403,7 +447,7 @@ function menu(params: Electron.ContextMenuParams) {
     let inspect = document.createElement("div");
     inspect.innerText = "检查";
     inspect.onclick = () => {
-        ipcRenderer.send("tab_view", bview_id, "inspect", { x: params.x, y: params.y });
+        ipcRenderer.send("tab_view", topestView, "inspect", { x: params.x, y: params.y });
     };
 
     menu_el.append(inspect);

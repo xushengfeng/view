@@ -550,12 +550,13 @@ async function createView(window_name: bwin_id, url: string, record: boolean, ro
             l.push(id);
             tree_store.set(`${view_id}.next`, l);
             if (root) tree_store.set(`0.next`, l);
+            sendViews(window_name, "add", id, root ? view_id : null, null, null);
         });
         return { action: "deny" };
     });
     if (dev) wc.openDevTools();
-    if (!chrome.webContents.isDestroyed()) chrome.webContents.send("win", "bview_id", view_id);
     if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "new", url);
+    sendViews(window_name, "update", view_id, null, null, { url: url });
     wc.on("destroyed", () => {
         main_window.removeBrowserView(search_view);
         viewL.delete(view_id);
@@ -563,10 +564,13 @@ async function createView(window_name: bwin_id, url: string, record: boolean, ro
     wc.on("page-title-updated", (event, title) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "title", title);
         tree_store.set(`${view_id}.title`, title);
+
+        sendViews(window_name, "update", view_id, null, null, { title });
     });
     wc.on("page-favicon-updated", (event, favlogo) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "icon", favlogo);
         tree_store.set(`${view_id}.logo`, favlogo[0]);
+        sendViews(window_name, "update", view_id, null, null, { icon: favlogo });
     });
     wc.on("will-navigate", (event) => {
         createView(window_name, event.url, true, !record).then((id) => {
@@ -574,15 +578,18 @@ async function createView(window_name: bwin_id, url: string, record: boolean, ro
             l.push(id);
             tree_store.set(`${view_id}.next`, l);
             if (root) tree_store.set(`0.next`, l);
+            sendViews(window_name, "add", id, root ? view_id : null, null, null);
         });
         event.preventDefault();
     });
     wc.on("did-navigate", (event, url) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "url", url);
+        sendViews(window_name, "update", view_id, null, null, { url: url });
     });
     wc.on("did-navigate-in-page", (event, url, isMainFrame) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "url", url);
         if (isMainFrame) tree_store.set(`${view_id}.url`, url);
+        sendViews(window_name, "update", view_id, null, null, { url: url });
     });
     wc.on("did-start-loading", () => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "load", true);
@@ -694,6 +701,14 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
     switch (arg) {
         case "close":
             search_window.webContents.close();
+            for (let x of winL) {
+                const wid = x[0],
+                    w = x[1];
+                if (w == main_window) {
+                    sendViews(wid, "close", id, null, null, null);
+                    break;
+                }
+            }
             break;
         case "stop":
             search_window.webContents.stop();
@@ -702,15 +717,18 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
             search_window.webContents.reload();
             break;
         case "add":
-            winL.forEach((w, id) => {
+            for (let x of winL) {
+                const wid = x[0],
+                    w = x[1];
                 if (w == main_window) {
-                    createView(id, arg2, true, true).then((id) => {
+                    createView(wid, arg2, true, true).then((new_id) => {
                         let l = (tree_store.get(`0.next`) as tree[0]["next"]) || [];
-                        l.push(id);
+                        l.push(new_id);
                         tree_store.set(`0.next`, l);
+                        sendViews(wid, "add", new_id, id, null, null);
                     });
                 }
-            });
+            }
             break;
         case "switch":
             // 获取BrowserWindow并提升bview
@@ -737,6 +755,22 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
             break;
     }
 });
+
+function sendViews(
+    sender: bwin_id,
+    type: "add" | "close" | "update" | "move",
+    id: number,
+    pid: number,
+    wid: number,
+    op
+) {
+    for (let w of winL) {
+        if (w[0] != sender) {
+            let chrome = winToChrome.get(w[0]).view;
+            chrome.webContents.send("view", type, id, pid, wid, op);
+        }
+    }
+}
 
 ipcMain.on("view", (e, type, arg) => {
     let main_window = BrowserWindow.fromWebContents(e.sender);
