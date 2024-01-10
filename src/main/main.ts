@@ -511,11 +511,13 @@ function get_real_url(url: string) {
 }
 
 /** 创建浏览器页面 */
-async function createView(window_name: bwin_id, url: string, record: boolean, root: boolean) {
+async function createView(window_name: bwin_id, url: string, pid: view_id) {
     let main_window = winL.get(window_name);
     let chrome = winToChrome.get(window_name).view;
 
-    if (main_window.isDestroyed()) return;
+    if (main_window.isDestroyed()) {
+        window_name = await createWin();
+    }
     let view_id = new Date().getTime() as view_id;
 
     tree_store.set(String(view_id), { logo: "", url: url, title: "" });
@@ -545,13 +547,7 @@ async function createView(window_name: bwin_id, url: string, record: boolean, ro
     main_window.setContentSize(w, h + 1);
     main_window.setContentSize(w, h);
     wc.setWindowOpenHandler(({ url }) => {
-        createView(window_name, url, true, !record).then((id) => {
-            let l = (tree_store.get(`${view_id}.next`) as tree[0]["next"]) || [];
-            l.push(id);
-            tree_store.set(`${view_id}.next`, l);
-            if (root) tree_store.set(`0.next`, l);
-            sendViews(window_name, "add", id, root ? view_id : null, null, null);
-        });
+        createView(window_name, url, view_id);
         return { action: "deny" };
     });
     if (dev) wc.openDevTools();
@@ -573,13 +569,7 @@ async function createView(window_name: bwin_id, url: string, record: boolean, ro
         sendViews(window_name, "update", view_id, null, null, { icon: favlogo });
     });
     wc.on("will-navigate", (event) => {
-        createView(window_name, event.url, true, !record).then((id) => {
-            let l = (tree_store.get(`${view_id}.next`) as tree[0]["next"]) || [];
-            l.push(id);
-            tree_store.set(`${view_id}.next`, l);
-            if (root) tree_store.set(`0.next`, l);
-            sendViews(window_name, "add", id, root ? view_id : null, null, null);
-        });
+        createView(window_name, event.url, view_id);
         event.preventDefault();
     });
     wc.on("did-navigate", (event, url) => {
@@ -676,10 +666,7 @@ async function createView(window_name: bwin_id, url: string, record: boolean, ro
     });
 
     wc.on("devtools-open-url", (_e, url) => {
-        createView(window_name, url, record, false).then((id) => {
-            let l = (tree_store.get(`0.next`) as tree[0]["next"]) || [];
-            l.push(id);
-        });
+        createView(window_name, url, view_id);
     });
 
     wc.on("zoom-changed", (_e, d) => {
@@ -689,6 +676,11 @@ async function createView(window_name: bwin_id, url: string, record: boolean, ro
         wc.setZoomFactor(x);
         chrome.webContents.send("win", "zoom", x);
     });
+
+    let l = (tree_store.get(`${pid}.next`) as tree[0]["next"]) || [];
+    l.push(view_id);
+    tree_store.set(`${pid}.next`, l);
+    sendViews(window_name, "add", view_id, pid, null, null);
 
     return view_id;
 }
@@ -721,12 +713,7 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
                 const wid = x[0],
                     w = x[1];
                 if (w == main_window) {
-                    createView(wid, arg2, true, true).then((new_id) => {
-                        let l = (tree_store.get(`0.next`) as tree[0]["next"]) || [];
-                        l.push(new_id);
-                        tree_store.set(`0.next`, l);
-                        sendViews(wid, "add", new_id, id, null, null);
-                    });
+                    createView(wid, arg2, 0 as view_id);
                 }
             }
             break;
