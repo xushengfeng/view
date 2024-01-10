@@ -23,7 +23,7 @@
     "devDependencies": {
         "@electron-toolkit/tsconfig": "^1.0.1",
         "@types/node": "^20.3.3",
-        "electron": "^25.1.0",
+        "electron": "^28.1.2",
         "electron-builder": "^24.4.0",
         "electron-vite": "^1.0.24",
         "typescript": "^5.1.6",
