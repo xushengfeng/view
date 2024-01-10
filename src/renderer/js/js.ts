@@ -103,6 +103,7 @@ let show_tree = document.createElement("div");
 show_tree.innerHTML = icon(reload_svg);
 show_tree.onclick = () => {
     set_chrome_size("full");
+    render_tree();
 };
 
 buttons.append(b_reload, show_tree);
@@ -340,6 +341,7 @@ class Card extends HTMLElement {
                     ipcRenderer.send("tab_view", null, "restart", this.view_id);
                 }
             }
+            set_chrome_size("hide");
         };
 
         this.append(bar, title, img);
