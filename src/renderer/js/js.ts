@@ -304,6 +304,9 @@ class Card extends HTMLElement {
     _title: string;
     _next: number[];
     _image: string;
+    _icon: string;
+    _url: string;
+    childrenEl: HTMLElement;
 
     constructor(id: number, title: string, next: number[], image: string) {
         super();
@@ -332,7 +335,7 @@ class Card extends HTMLElement {
             } else {
                 const t = 1000 * 60 * 60 * 12;
                 if (new Date().getTime() - this.view_id > t) {
-                    ipcRenderer.send("tab_view", null, "add", getView(this.view_id).url);
+                    ipcRenderer.send("tab_view", null, "add", this._url);
                 } else {
                     ipcRenderer.send("tab_view", null, "restart", this.view_id);
                 }
@@ -341,13 +344,14 @@ class Card extends HTMLElement {
 
         this.append(bar, title, img);
 
+        this.childrenEl = document.createElement("div");
+        this.append(this.childrenEl);
         if (this._next?.length > 0) {
-            let childrenEl = document.createElement("div");
+            this.childrenEl.innerHTML = "";
             for (let i of this._next) {
                 let child = create_card(i);
-                childrenEl.append(child);
+                this.childrenEl.append(child);
             }
-            this.append(childrenEl);
         }
     }
 
@@ -365,6 +369,12 @@ class Card extends HTMLElement {
     }
     set image(i: string) {
         this._image = i;
+    }
+    set icon(i: string) {
+        this._icon = i;
+    }
+    set url(u: string) {
+        this._url = u;
     }
 }
 
@@ -411,7 +421,7 @@ ipcRenderer.on("view", (e, type: "add" | "close" | "update" | "move", id: number
 });
 
 function getCardById(id: number) {
-    return document.querySelector(`div[data-id="${id}"]`);
+    return document.querySelector(`div[data-id="${id}"]`) as Card;
 }
 
 function cardAdd(id: number, parent: number) {
@@ -419,6 +429,7 @@ function cardAdd(id: number, parent: number) {
     let pCardEl = getCardById(parent);
     if (pCardEl) {
         let x = create_card(id);
+        pCardEl.childrenEl.insertBefore(x, pCardEl.childrenEl.firstChild);
     }
 }
 
@@ -426,7 +437,15 @@ function cardClose(id: number) {
     activeViews = activeViews.filter((x) => x != id);
 }
 
-function cardUpdata(id: number, op: { url?: string; title?: string; icon?: string; cover?: string }) {}
+function cardUpdata(id: number, op: { url?: string; title?: string; icon?: string; cover?: string }) {
+    let pCardEl = getCardById(id);
+    if (pCardEl) {
+        if (op.title) pCardEl.title = op.title;
+        if (op.icon) pCardEl.icon = op.icon;
+        if (op.cover) pCardEl.image = op.cover;
+        if (op.url) pCardEl.url = op.url;
+    }
+}
 
 function cardMove(id: number, newParent: number) {
     if (newParent === pid) {
