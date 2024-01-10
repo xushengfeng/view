@@ -292,37 +292,74 @@ type tree = {
 let tree_store = new Store({ name: "tree" });
 let tree = (tree_store.store || {}) as tree;
 
-function create_card(id: number) {
-    let x = document.createElement("div");
-    let bar = document.createElement("div");
-    let title = document.createElement("div");
-    let img = document.createElement("img");
+class Card extends HTMLElement {
+    view_id: number;
+    _title: string;
+    _next: number[];
+    _image: string;
 
-    x.setAttribute("data-id", id.toString());
-
-    title.innerText = tree[id].title;
-
-    img.src = `file://${userDataPath}/capture/${id}.jpg`;
-
-    img.onclick = () => {
-        if (activeViews.includes(id)) {
-            ipcRenderer.send("tab_view", null, "switch", id);
-            topestView = id;
-        }
-    };
-
-    x.append(bar, title, img);
-
-    if (tree[id].next) {
-        let childrenEl = document.createElement("div");
-        for (let i of tree[id].next) {
-            let child = create_card(i);
-            childrenEl.append(child);
-        }
-        x.append(childrenEl);
+    constructor(id: number, title: string, next: number[], image: string) {
+        super();
+        this.view_id = id;
+        this._title = title;
+        this._next = next;
+        this._image = image;
     }
 
-    return x;
+    connectedCallback() {
+        let bar = document.createElement("div");
+        let title = document.createElement("div");
+        let img = document.createElement("img");
+
+        this.setAttribute("data-id", this.view_id.toString());
+
+        title.innerText = this._title;
+
+        img.src = this._image;
+
+        img.onclick = () => {
+            if (activeViews.includes(this.view_id)) {
+                ipcRenderer.send("tab_view", null, "switch", this.view_id);
+                topestView = this.view_id;
+            }
+        };
+
+        this.append(bar, title, img);
+
+        if (this._next?.length > 0) {
+            let childrenEl = document.createElement("div");
+            for (let i of this._next) {
+                let child = create_card(i);
+                childrenEl.append(child);
+            }
+            this.append(childrenEl);
+        }
+    }
+
+    set viewId(id: number) {
+        this.view_id = id;
+    }
+    set title(t: string) {
+        this._title = t;
+    }
+    set next(n: number[]) {
+        this._next = n;
+    }
+    get next() {
+        return this._next;
+    }
+    set image(i: string) {
+        this._image = i;
+    }
+}
+
+customElements.define("view-card", Card);
+function create_card(id: number): Card {
+    let title = tree[id].title;
+    let next = tree[id].next;
+    let image = `file://${userDataPath}/capture/${id}.jpg`;
+
+    return new Card(id, title, next, image);
 }
 
 function render_tree() {
