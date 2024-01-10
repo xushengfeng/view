@@ -503,7 +503,8 @@ if (!fs.existsSync(path.join(app.getPath("userData"), "capture"))) {
 function get_real_url(url: string) {
     if (url.startsWith("view")) {
         let h = url.replace(/^view:\/\//, "");
-        return renderer_url(h + ".html");
+        h = h.replace(/(^\w+)/, "$1.html");
+        return renderer_url(h);
     } else {
         return url;
     }
