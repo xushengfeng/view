@@ -539,6 +539,7 @@ async function createView(window_name: bwin_id, url: string, pid: view_id) {
     viewL.set(view_id, search_view);
     main_window.addBrowserView(search_view);
     main_window.setTopBrowserView(chrome);
+    winToViewl.get(window_name).push(view_id);
     const wc = search_view.webContents;
     const real_url = get_real_url(url);
     wc.loadURL(real_url);

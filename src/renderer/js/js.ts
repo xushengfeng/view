@@ -289,8 +289,15 @@ type tree = {
     };
 };
 
-let tree_store = new Store({ name: "tree" });
-let tree = (tree_store.store || {}) as tree;
+let treeStore = new Store({ name: "tree" });
+let tree = (treeStore.store || {}) as tree;
+
+function getView(id: number) {
+    let view = treeStore.get(id.toString());
+    console.log(id, JSON.stringify(view));
+
+    return view as tree[0];
+}
 
 class Card extends HTMLElement {
     view_id: number;
@@ -355,8 +362,9 @@ class Card extends HTMLElement {
 
 customElements.define("view-card", Card);
 function create_card(id: number): Card {
-    let title = tree[id].title;
-    let next = tree[id].next;
+    let view = getView(id);
+    let title = view.title;
+    let next = view.next;
     let image = `file://${userDataPath}/capture/${id}.jpg`;
 
     return new Card(id, title, next, image);
@@ -364,9 +372,9 @@ function create_card(id: number): Card {
 
 function render_tree() {
     console.log(tree);
-    let root = tree[0].next.toReversed();
+    let root = getView(0).next.toReversed();
     // TODO 虚拟列表
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < Math.min(5, root.length); i++) {
         let x = create_card(root[i]);
         tree_el.append(x);
     }
