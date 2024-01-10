@@ -95,7 +95,7 @@ let url_el = document.getElementById("url");
 let b_reload = document.createElement("div");
 b_reload.innerHTML = icon(reload_svg);
 b_reload.onclick = () => {
-    ipcRenderer.send("tab_view", "reload");
+    ipcRenderer.send("tab_view", topestView, "reload");
     set_chrome_size("hide");
 };
 
