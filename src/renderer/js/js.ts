@@ -325,9 +325,17 @@ class Card extends HTMLElement {
         img.src = this._image;
 
         img.onclick = () => {
+            // 切换到活跃标签页，若已关闭，超时建立新card，不超时则重启
             if (activeViews.includes(this.view_id)) {
                 ipcRenderer.send("tab_view", null, "switch", this.view_id);
                 topestView = this.view_id;
+            } else {
+                const t = 1000 * 60 * 60 * 12;
+                if (new Date().getTime() - this.view_id > t) {
+                    ipcRenderer.send("tab_view", null, "add", getView(this.view_id).url);
+                } else {
+                    ipcRenderer.send("tab_view", null, "restart", this.view_id);
+                }
             }
         };
 

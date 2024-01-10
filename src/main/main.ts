@@ -511,14 +511,14 @@ function get_real_url(url: string) {
 }
 
 /** 创建浏览器页面 */
-async function createView(window_name: bwin_id, url: string, pid: view_id) {
+async function createView(window_name: bwin_id, url: string, pid: view_id, id?: view_id) {
     let main_window = winL.get(window_name);
     let chrome = winToChrome.get(window_name).view;
 
     if (main_window.isDestroyed()) {
         window_name = await createWin();
     }
-    let view_id = new Date().getTime() as view_id;
+    let view_id = id ?? (new Date().getTime() as view_id);
 
     tree_store.set(String(view_id), { logo: "", url: url, title: "" });
 
@@ -678,6 +678,8 @@ async function createView(window_name: bwin_id, url: string, pid: view_id) {
         chrome.webContents.send("win", "zoom", x);
     });
 
+    if (id) return id;
+
     let l = (tree_store.get(`${pid}.next`) as tree[0]["next"]) || [];
     l.push(view_id);
     tree_store.set(`${pid}.next`, l);
@@ -713,8 +715,9 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
             for (let x of winL) {
                 const wid = x[0],
                     w = x[1];
-                if (w == main_window) {
+                if (w === main_window) {
                     createView(wid, arg2, 0 as view_id);
+                    break;
                 }
             }
             break;
@@ -731,6 +734,17 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
                     }
                 }
             });
+            break;
+        case "restart":
+            for (let x of winL) {
+                const wid = x[0],
+                    w = x[1];
+                if (w === main_window) {
+                    const url = (tree_store.get(String(arg2)) as tree[0]).url;
+                    createView(wid, url, null, arg2 as view_id);
+                    break;
+                }
+            }
             break;
         case "dev":
             search_window.webContents.openDevTools();
