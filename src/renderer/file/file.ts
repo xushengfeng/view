@@ -25,6 +25,7 @@ import unzip_svg from "../assets/icons/unzip.svg";
 import folder_svg from "../assets/icons/file.svg";
 import up_svg from "../assets/icons/up.svg";
 import eye_svg from "../assets/icons/eye.svg";
+import reload_svg from "../assets/icons/reload.svg";
 
 const contentEl = document.getElementById("content") as HTMLElement;
 
@@ -180,6 +181,11 @@ async function prompt(text: string) {
     return "";
 }
 
+function reflash() {
+    render(entry(nowPath));
+    selectEl();
+}
+
 function copy() {
     let fileList = getFullSelect();
     console.log(fileList);
@@ -327,6 +333,7 @@ function switchHidden(h: boolean) {
 const opraEl = document.getElementById("opra");
 let opra = {
     dotdot: { fun: dotdot, icon: up_svg },
+    reflash: { fun: reflash, icon: reload_svg },
     copy: { fun: copy, icon: copy_svg },
     cut: { fun: cut, icon: cut_svg },
     paste: { fun: paste, icon: paste_svg },
@@ -363,6 +370,7 @@ function createOpraEl(type: keyof typeof opra) {
 
 let opraList: (keyof typeof opra)[] = [
     "dotdot",
+    "reflash",
     "copy",
     "cut",
     "paste",
