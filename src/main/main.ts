@@ -505,6 +505,8 @@ function get_real_url(url: string) {
         let h = url.replace(/^view:\/\//, "");
         h = h.replace(/(^\w+)/, "$1.html");
         return renderer_url(h);
+    } else if (url.startsWith("file")) {
+        return get_real_url(url.replace("file://", "view:file?path="));
     } else {
         return url;
     }
