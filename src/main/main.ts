@@ -539,6 +539,7 @@ async function createView(window_name: bwin_id, url: string, pid: view_id, id?: 
     }
 
     let search_view = new BrowserView(op);
+    search_view.setBackgroundColor(nativeTheme.shouldUseDarkColors ? "#0f0f0f" : "#ffffff");
     viewL.set(view_id, search_view);
     main_window.addBrowserView(search_view);
     main_window.setTopBrowserView(chrome);
