@@ -1,0 +1,39 @@
+.hidden {
+    opacity: 0.8;
+}
+.selected {
+    background-color: #00f4;
+}
+#opra {
+    display: flex;
+}
+#opra > .opra {
+    position: relative;
+    width: 24px;
+    height: 24px;
+}
+
+#opra > .opra > img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 24px;
+    height: 24px;
+}
+#opra > .opra > label {
+    opacity: 0;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 24px;
+    height: 24px;
+}
+#opra > .opra:has(input:checked) {
+    background-color: #0002;
+}
+
+#content {
+    overflow: scroll;
+    height: calc(100vh - 100px);
+    user-select: none;
+}
