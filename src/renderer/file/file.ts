@@ -325,7 +325,7 @@ function rm() {
 }
 
 function switchHidden(h: boolean) {
-    hidden = h;
+    hidden = !h;
     render(entry(nowPath));
     selectEl();
 }
@@ -385,8 +385,6 @@ let opraList: (keyof typeof opra)[] = [
 let menuList: (keyof typeof opra)[] = ["copy", "cut", "paste", "newDir", "rename", "moveToBin", "zip", "unzip"];
 
 opraEl.append(...opraList.map((i) => createOpraEl(i)));
-
-(document.querySelector('[opra-type="hidden"] input') as HTMLInputElement).checked = true;
 
 // todo ftp
 // todo webdav
