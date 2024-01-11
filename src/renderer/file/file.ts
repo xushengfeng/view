@@ -1,7 +1,7 @@
 const fs = require("fs") as typeof import("fs");
 const path = require("path") as typeof import("path");
 
-const { clipboard } = require("electron") as typeof import("electron");
+const { clipboard, shell } = require("electron") as typeof import("electron");
 
 import { el } from "redom";
 
@@ -298,7 +298,15 @@ function unzip() {
     }
 }
 
-function moveToBin() {}
+function moveToBin() {
+    let fileList = getFullSelect();
+    for (let i of fileList) {
+        shell.trashItem(i);
+    }
+    render(entry(nowPath));
+    select = [];
+    selectEl();
+}
 
 function rm() {
     let fileList = getFullSelect();
