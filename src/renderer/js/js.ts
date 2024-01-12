@@ -386,8 +386,9 @@ function create_card(id: number): Card {
     let title = view.title;
     let next = view.next;
     let image = `file://${userDataPath}/capture/${id}.jpg`;
-
-    return new Card(id, title, next, image);
+    let card = new Card(id, title, next, image);
+    card.url = view.url;
+    return card;
 }
 
 function render_tree() {
