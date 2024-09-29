@@ -24,6 +24,7 @@
         "winattr": "^3.0.0"
     },
     "devDependencies": {
+        "@biomejs/biome": "^1.9.2",
         "@electron-toolkit/tsconfig": "^1.0.1",
         "@types/node": "^20.3.3",
         "@types/node-7z": "^2.1.8",

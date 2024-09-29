@@ -1,7 +1,7 @@
 const Store = require("electron-store") as typeof import("electron-store");
 import { t, lan } from "../../../lib/translate/translate";
 import { setting } from "../../types";
-let setting = new Store();
+const setting = new Store();
 
 lan(setting.get("lan"));
 document.body.innerHTML = document.body.innerHTML
@@ -21,14 +21,14 @@ function init_el() {
 }
 
 document.getElementById("menu").onclick = (e) => {
-    let el = <HTMLElement>e.target;
-    if (el.tagName == "LI") {
+    const el = <HTMLElement>e.target;
+    if (el.tagName === "LI") {
         let i = 0;
         document
             .getElementById("menu")
             .querySelectorAll("li")
             .forEach((lel, n) => {
-                if (lel == el) {
+                if (lel === el) {
                     i = n;
                     return;
                 }
@@ -38,7 +38,7 @@ document.getElementById("menu").onclick = (e) => {
 };
 
 import pack from "../../../package.json?raw";
-var package_json = JSON.parse(pack);
+const package_json = JSON.parse(pack);
 document.getElementById("name").innerHTML = package_json.name;
 document.getElementById("version").innerHTML = package_json.version;
 document.getElementById("description").innerHTML = t(package_json.description);

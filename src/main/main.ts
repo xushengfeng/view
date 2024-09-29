@@ -13,17 +13,17 @@ import {
     session,
 } from "electron";
 const Store = require("electron-store") as typeof import("electron-store");
-import * as path from "path";
+import * as path from "node:path";
 const run_path = path.join(path.resolve(__dirname, ""), "../../");
-import { spawn, exec } from "child_process";
-import * as fs from "fs";
+import { spawn, exec } from "node:child_process";
+import * as fs from "node:fs";
 import { t, lan } from "../../lib/translate/translate";
 import url from "node:url";
-import { setting, DownloadItem } from "../types";
+import type { setting, DownloadItem } from "../types";
 
 // 自定义用户路径
 try {
-    var userDataPath = fs.readFileSync(path.join(run_path, "preload_config")).toString().trim();
+    let userDataPath = fs.readFileSync(path.join(run_path, "preload_config")).toString().trim();
     if (userDataPath) {
         if (app.isPackaged) {
             userDataPath = path.join(run_path, "../../", userDataPath);
@@ -39,9 +39,9 @@ ipcMain.on("run_path", (event) => {
     event.returnValue = run_path;
 });
 
-var store = new Store();
+const store = new Store();
 
-var /** 是否开启开发模式 */ dev: boolean;
+let /** 是否开启开发模式 */ dev: boolean;
 // 自动开启开发者模式
 if (process.argv.includes("-d") || import.meta.env.DEV) {
     dev = true;
@@ -55,19 +55,19 @@ function renderer_url(file_name: string, q?: Electron.LoadFileOptions) {
     } else if (!q.query) {
         q.query = { config_path: app.getPath("userData") };
     } else {
-        q.query["config_path"] = app.getPath("userData");
+        q.query.config_path = app.getPath("userData");
     }
     let x: url.URL;
-    if (!app.isPackaged && process.env["ELECTRON_RENDERER_URL"]) {
-        let main_url = `${process.env["ELECTRON_RENDERER_URL"]}/${file_name}`;
+    if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
+        const main_url = `${process.env.ELECTRON_RENDERER_URL}/${file_name}`;
         x = new url.URL(main_url);
     } else {
-        x = new url.URL("file://" + path.join(__dirname, "../renderer", file_name));
+        x = new url.URL(`file://${path.join(__dirname, "../renderer", file_name)}`);
     }
     if (q) {
         if (q.search) x.search = q.search;
         if (q.query) {
-            for (let i in q.query) {
+            for (const i in q.query) {
                 x.searchParams.set(i, q.query[i]);
             }
         }
@@ -227,8 +227,8 @@ app.whenReady().then(() => {
                     label: t("框架"),
                     accelerator: "CmdOrCtrl+S",
                     click(_i, w) {
-                        for (let i of winL) {
-                            if (i[1] == w) {
+                        for (const i of winL) {
+                            if (i[1] === w) {
                                 winToChrome.get(i[0]).view.webContents.send("win", "chrome_toggle");
                                 break;
                             }
@@ -276,38 +276,39 @@ app.on("will-quit", () => {
     globalShortcut.unregisterAll();
 });
 
-var the_icon = null;
-if (process.platform == "win32") {
+let the_icon = null;
+if (process.platform === "win32") {
     the_icon = path.join(run_path, "assets/logo/icon.ico");
 } else {
     the_icon = path.join(run_path, "assets/logo/1024x1024.png");
 }
 ipcMain.on("setting", async (event, arg, arg1, arg2) => {
     switch (arg) {
-        case "save_err":
+        case "save_err": {
             console.log("保存设置失败");
             break;
             store.clear();
             set_default_setting();
-            var resolve = await dialog.showMessageBox({
+            const resolve = await dialog.showMessageBox({
                 title: t("重启"),
                 message: `${t("已恢复默认设置，部分设置需要重启")} ${app.name} ${t("生效")}`,
                 buttons: [t("重启"), t("稍后")],
                 defaultId: 0,
                 cancelId: 1,
             });
-            if (resolve.response == 0) {
+            if (resolve.response === 0) {
                 app.relaunch();
                 app.exit(0);
             }
             break;
+        }
         case "reload":
             app.relaunch();
             app.exit(0);
             break;
-        case "clear":
-            let ses = session.defaultSession;
-            if (arg1 == "storage") {
+        case "clear": {
+            const ses = session.defaultSession;
+            if (arg1 === "storage") {
                 ses.clearStorageData()
                     .then(() => {
                         event.sender.send("setting", "storage", true);
@@ -330,21 +331,23 @@ ipcMain.on("setting", async (event, arg, arg1, arg2) => {
                     });
             }
             break;
+        }
         case "open_dialog":
             dialog.showOpenDialog(arg1).then((x) => {
                 event.sender.send("setting", arg, arg2, x);
             });
             break;
-        case "move_user_data":
+        case "move_user_data": {
             if (!arg1) return;
             const to_path = path.resolve(arg1);
             const pre_path = app.getPath("userData");
             fs.mkdirSync(to_path, { recursive: true });
-            if (process.platform == "win32") {
+            if (process.platform === "win32") {
                 exec(`xcopy ${pre_path}\\** ${to_path} /Y /s`);
             } else {
                 exec(`cp -r ${pre_path}/** ${to_path}`);
             }
+        }
     }
 });
 
@@ -359,17 +362,17 @@ type bwin_id = number & { readonly __tag: unique symbol };
 // 一个browserview对应一个id，不存在history
 /** 网页id（包括在同一页面跳转的） */
 type view_id = number & { readonly __tag: unique symbol };
-var winL: Map<bwin_id, BrowserWindow> = new Map();
+const winL: Map<bwin_id, BrowserWindow> = new Map();
 // 不同的view分配到窗口
-var winToViewl: Map<bwin_id, view_id[]> = new Map();
-var winToChrome: Map<bwin_id, { view: BrowserView; size: "normal" | "hide" | "full" }> = new Map();
-var viewL: Map<view_id, BrowserView> = new Map();
-var winToPasswd: Map<BrowserWindow, BrowserView> = new Map();
+const winToViewl: Map<bwin_id, view_id[]> = new Map();
+const winToChrome: Map<bwin_id, { view: BrowserView; size: "normal" | "hide" | "full" }> = new Map();
+const viewL: Map<view_id, BrowserView> = new Map();
+const winToPasswd: Map<BrowserWindow, BrowserView> = new Map();
 
 // 窗口
 async function createWin() {
     const window_name = new Date().getTime() as bwin_id;
-    let main_window = new BrowserWindow({
+    const main_window = new BrowserWindow({
         backgroundColor: nativeTheme.shouldUseDarkColors ? "#0f0f0f" : "#ffffff",
         icon: the_icon,
         webPreferences: {
@@ -390,7 +393,7 @@ async function createWin() {
             h: main_window.getNormalBounds().height,
             m: main_window.isMaximized(),
         });
-        for (let i of main_window.getBrowserViews()) {
+        for (const i of main_window.getBrowserViews()) {
             // @ts-ignore
             i?.webContents?.destroy();
         }
@@ -403,10 +406,10 @@ async function createWin() {
     // 浏览器大小适应
     main_window.on("resize", () => {
         setTimeout(() => {
-            var [w, h] = main_window.getContentSize();
-            for (let i of main_window.getBrowserViews()) {
-                if (i.getBounds().width != 0 && i != chrome) i.setBounds(get_size(w, h));
-                if (i == chrome) set_chrome_size(window_name);
+            const [w, h] = main_window.getContentSize();
+            for (const i of main_window.getBrowserViews()) {
+                if (i.getBounds().width !== 0 && i !== chrome) i.setBounds(get_size(w, h));
+                if (i === chrome) set_chrome_size(window_name);
             }
         }, 0);
     });
@@ -418,7 +421,7 @@ async function createWin() {
         chrome.webContents.send("win", "unmax");
     });
 
-    let chrome = new BrowserView({
+    const chrome = new BrowserView({
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
@@ -439,16 +442,16 @@ async function createWin() {
 }
 
 function set_chrome_size(pid: bwin_id) {
-    let main_window = winL.get(pid);
-    let x = winToChrome.get(pid);
-    let o = { full: main_window.getContentSize()[1], normal: 24, hide: 0 };
+    const main_window = winL.get(pid);
+    const x = winToChrome.get(pid);
+    const o = { full: main_window.getContentSize()[1], normal: 24, hide: 0 };
     x.view.setBounds({ x: 0, y: 0, width: main_window.getContentSize()[0], height: o[x.size] });
 }
 
 ipcMain.on("win", (e, pid, type) => {
     console.log(pid, type);
     if (!pid) return;
-    let main_window = BrowserWindow.fromWebContents(e.sender);
+    const main_window = BrowserWindow.fromWebContents(e.sender);
     switch (type) {
         case "mini":
             main_window.minimize();
@@ -463,7 +466,7 @@ ipcMain.on("win", (e, pid, type) => {
         case "close":
             main_window.close();
             winL.delete(pid);
-            for (let i of winToViewl.get(pid)) {
+            for (const i of winToViewl.get(pid)) {
                 viewL.delete(i);
             }
             winToViewl.delete(pid);
@@ -493,8 +496,8 @@ type tree = {
     };
 };
 
-var tree_text_store = new Store({ name: "text" });
-let tree_store = new Store({ name: "tree" });
+const tree_text_store = new Store({ name: "text" });
+const tree_store = new Store({ name: "tree" });
 
 if (!fs.existsSync(path.join(app.getPath("userData"), "capture"))) {
     fs.mkdirSync(path.join(app.getPath("userData"), "capture"));
@@ -505,27 +508,26 @@ function get_real_url(url: string) {
         let h = url.replace(/^view:\/\//, "");
         h = h.replace(/(^\w+)/, "$1.html");
         return renderer_url(h);
-    } else if (url.startsWith("file")) {
+    }if (url.startsWith("file")) {
         return get_real_url(url.replace("file://", "view:file?path="));
-    } else {
-        return url;
     }
+        return url;
     // TODO 改变location和new URL
 }
 
 /** 创建浏览器页面 */
 async function createView(window_name: bwin_id, url: string, pid: view_id, id?: view_id) {
-    let main_window = winL.get(window_name);
-    let chrome = winToChrome.get(window_name).view;
+    const main_window = winL.get(window_name);
+    const chrome = winToChrome.get(window_name).view;
 
     if (main_window.isDestroyed()) {
         window_name = await createWin();
     }
-    let view_id = id ?? (new Date().getTime() as view_id);
+    const view_id = id ?? (new Date().getTime() as view_id);
 
     tree_store.set(String(view_id), { logo: "", url: url, title: "" });
 
-    let op: Electron.BrowserViewConstructorOptions = {
+    const op: Electron.BrowserViewConstructorOptions = {
         webPreferences: {
             nodeIntegrationInSubFrames: true,
             preload: path.join(__dirname, "../preload", "view.js"),
@@ -538,7 +540,7 @@ async function createView(window_name: bwin_id, url: string, pid: view_id, id?: 
         op.webPreferences.preload = null;
     }
 
-    let search_view = new BrowserView(op);
+    const search_view = new BrowserView(op);
     search_view.setBackgroundColor(nativeTheme.shouldUseDarkColors ? "#0f0f0f" : "#ffffff");
     viewL.set(view_id, search_view);
     main_window.addBrowserView(search_view);
@@ -547,7 +549,7 @@ async function createView(window_name: bwin_id, url: string, pid: view_id, id?: 
     const wc = search_view.webContents;
     const real_url = get_real_url(url);
     wc.loadURL(real_url);
-    var [w, h] = main_window.getContentSize();
+    const [w, h] = main_window.getContentSize();
     search_view.setBounds(get_size(w, h));
     main_window.setContentSize(w, h + 1);
     main_window.setContentSize(w, h);
@@ -601,7 +603,7 @@ async function createView(window_name: bwin_id, url: string, pid: view_id, id?: 
     async function save_pic() {
         let image = await wc.capturePage();
         fs.writeFile(
-            path.join(app.getPath("userData"), "capture", view_id + ".jpg"),
+            path.join(app.getPath("userData"), "capture", `${view_id}.jpg`),
             image
                 .resize({
                     height: Math.floor(image.getSize().height / 2),
@@ -660,7 +662,7 @@ async function createView(window_name: bwin_id, url: string, pid: view_id, id?: 
     wc.session.setPermissionRequestHandler((w, p, cb) => {
         chrome.webContents.send("site_about", p, w.getURL());
         ipcMain.on("site_about", (_e, a, pp, b) => {
-            if (a == w.getURL() && pp == p) {
+            if (a === w.getURL() && pp === p) {
                 cb(b);
             }
         });
@@ -675,8 +677,8 @@ async function createView(window_name: bwin_id, url: string, pid: view_id, id?: 
     });
 
     wc.on("zoom-changed", (_e, d) => {
-        let l = wc.zoomFactor;
-        let x = l + (d == "in" ? 0.1 : -0.1);
+        const l = wc.zoomFactor;
+        let x = l + (d === "in" ? 0.1 : -0.1);
         x = Math.min(5, Math.max(0.2, x));
         wc.setZoomFactor(x);
         chrome.webContents.send("win", "zoom", x);
@@ -684,7 +686,7 @@ async function createView(window_name: bwin_id, url: string, pid: view_id, id?: 
 
     if (id) return id;
 
-    let l = (tree_store.get(`${pid}.next`) as tree[0]["next"]) || [];
+    const l = (tree_store.get(`${pid}.next`) as tree[0]["next"]) || [];
     l.push(view_id);
     tree_store.set(`${pid}.next`, l);
     sendViews(window_name, "add", view_id, pid, null, null);
@@ -695,15 +697,15 @@ async function createView(window_name: bwin_id, url: string, pid: view_id, id?: 
 ipcMain.on("tab_view", (e, id, arg, arg2) => {
     console.log(arg);
 
-    let main_window = BrowserWindow.fromWebContents(e.sender);
-    let search_window = viewL.get(id);
+    const main_window = BrowserWindow.fromWebContents(e.sender);
+    const search_window = viewL.get(id);
     switch (arg) {
         case "close":
             search_window.webContents.close();
-            for (let x of winL) {
-                const wid = x[0],
-                    w = x[1];
-                if (w == main_window) {
+            for (const x of winL) {
+                const wid = x[0];
+                const w = x[1];
+                if (w === main_window) {
                     sendViews(wid, "close", id, null, null, null);
                     break;
                 }
@@ -716,9 +718,9 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
             search_window.webContents.reload();
             break;
         case "add":
-            for (let x of winL) {
-                const wid = x[0],
-                    w = x[1];
+            for (const x of winL) {
+                const wid = x[0];
+                const w = x[1];
                 if (w === main_window) {
                     createView(wid, arg2, 0 as view_id);
                     break;
@@ -728,8 +730,8 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
         case "switch":
             // 获取BrowserWindow并提升bview
             winToViewl.forEach((bvs, id) => {
-                for (let i of bvs) {
-                    if (i == arg2) {
+                for (const i of bvs) {
+                    if (i === arg2) {
                         winL.get(id).setTopBrowserView(viewL.get(i));
                         winL.get(id).setTopBrowserView(winToChrome.get(id).view);
                         winL.get(id).moveTop();
@@ -740,9 +742,9 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
             });
             break;
         case "restart":
-            for (let x of winL) {
-                const wid = x[0],
-                    w = x[1];
+            for (const x of winL) {
+                const wid = x[0];
+                const w = x[1];
                 if (w === main_window) {
                     const url = (tree_store.get(String(arg2)) as tree[0]).url;
                     createView(wid, url, null, arg2 as view_id);
@@ -770,32 +772,32 @@ function sendViews(
     wid: number,
     op
 ) {
-    for (let w of winL) {
-        if (w[0] != sender) {
-            let chrome = winToChrome.get(w[0]).view;
+    for (const w of winL) {
+        if (w[0] !== sender) {
+            const chrome = winToChrome.get(w[0]).view;
             chrome.webContents.send("view", type, id, pid, wid, op);
         }
     }
 }
 
 ipcMain.on("view", (e, type, arg) => {
-    let main_window = BrowserWindow.fromWebContents(e.sender);
+    const main_window = BrowserWindow.fromWebContents(e.sender);
     switch (type) {
         case "opensearch":
             console.log(arg);
-            for (let i in arg) {
+            for (const i in arg) {
                 store.set(`searchEngine.engine.${i}`, arg[i]);
             }
             break;
         case "input":
             console.log(arg);
 
-            if (arg.action == "focus") {
-                let bv = new BrowserView();
+            if (arg.action === "focus") {
+                const bv = new BrowserView();
                 main_window.addBrowserView(bv);
-                let r = arg.position as DOMRect;
-                const w = 100,
-                    h = 100;
+                const r = arg.position as DOMRect;
+                const w = 100;
+                const h = 100;
                 bv.setBounds({
                     width: w,
                     height: h,
@@ -809,7 +811,7 @@ ipcMain.on("view", (e, type, arg) => {
                 });
                 if (dev) bv.webContents.openDevTools();
             } else {
-                let bv = winToPasswd.get(main_window);
+                const bv = winToPasswd.get(main_window);
                 if (bv) {
                     main_window.removeBrowserView(bv);
                     bv.webContents.close();
@@ -824,9 +826,9 @@ ipcMain.on("theme", (e, v) => {
     store.set("appearance.theme", v);
 });
 
-let download_store = new Store({ name: "download" });
+const download_store = new Store({ name: "download" });
 
-let aria2_port = NaN;
+let aria2_port = Number.NaN;
 const aria2_f = path.join(run_path, "extra", process.platform, process.arch, "engine", "aria2c");
 const aria2_conf = path.join(run_path, "extra", process.platform, process.arch, "engine", "aria2.conf");
 
@@ -877,18 +879,18 @@ let check_global_aria2_run = false;
 function check_global_aria2() {
     setInterval(async () => {
         if (check_global_aria2_run) {
-            let has = 0,
-                t = 0;
-            let al = (await aria2("tellActive", [])) as any[];
-            for (let i of al) {
+            let has = 0;
+            let t = 0;
+            const al = (await aria2("tellActive", [])) as any[];
+            for (const i of al) {
                 has += i.completedLength;
                 t += i.totalLength;
             }
-            let wl = (await aria2("tellActive", [])) as any[];
-            for (let i of wl) {
+            const wl = (await aria2("tellActive", [])) as any[];
+            for (const i of wl) {
                 t += i.totalLength;
             }
-            for (let i of winL.values()) {
+            for (const i of winL.values()) {
                 i.setProgressBar(has / t);
             }
         }
@@ -898,7 +900,7 @@ function check_global_aria2() {
 async function download(url: string) {
     if (!aria2_port) await aria2_start();
     aria2("addUri", [[url]]).then((x) => {
-        let l = (download_store.get("items") || []) as DownloadItem[];
+        const l = (download_store.get("items") || []) as DownloadItem[];
         l.unshift({ id: x.id, createdAt: new Date().getTime(), filename: "", status: "pending", url });
         download_store.set("items", l);
     });
@@ -907,19 +909,19 @@ async function download(url: string) {
 }
 
 function check_window() {
-    let w = store.get("windows") as setting["windows"];
-    for (let i of w.desktop) {
+    const w = store.get("windows") as setting["windows"];
+    for (const i of w.desktop) {
         showDesktop(i);
     }
-    for (let i of w.fixed) {
+    for (const i of w.fixed) {
         showItem(i);
     }
 }
 
 function showDesktop(d: setting["windows"]["desktop"][0]) {
-    let se = screen.getAllDisplays().find((x) => x.id === d.screenId) || screen.getPrimaryDisplay();
-    let isWin32 = process.platform === "win32";
-    let wi = new BrowserWindow({
+    const se = screen.getAllDisplays().find((x) => x.id === d.screenId) || screen.getPrimaryDisplay();
+    const isWin32 = process.platform === "win32";
+    const wi = new BrowserWindow({
         fullscreen: true,
         autoHideMenuBar: true,
         ...(isWin32 ? {} : { type: "desktop" }),
@@ -937,18 +939,17 @@ function showDesktop(d: setting["windows"]["desktop"][0]) {
 
 function showItem(i: setting["windows"]["fixed"][0]) {
     function getSize(S: string, a: "x" | "y" | "w" | "h", root?: number | null) {
-        let se = screen.getAllDisplays().find((x) => x.id === root);
+        const se = screen.getAllDisplays().find((x) => x.id === root);
         if (S.includes("px")) {
             if (a === "x") {
-                return parseInt(S.replace("px", "")) + (se?.bounds?.x | 0);
-            } else if (a === "y") {
-                return parseInt(S.replace("px", "")) + (se?.bounds?.y | 0);
-            } else {
-                return parseInt(S.replace("px", ""));
+                return Number.parseInt(S.replace("px", "")) + (se?.bounds?.x | 0);
+            }if (a === "y") {
+                return Number.parseInt(S.replace("px", "")) + (se?.bounds?.y | 0);
             }
+                return Number.parseInt(S.replace("px", ""));
         }
     }
-    let wi = new BrowserWindow({
+    const wi = new BrowserWindow({
         width: getSize(i.width, "w", i.root),
         height: getSize(i.height, "h", i.root),
         x: getSize(i.left, "x", i.root),
@@ -964,7 +965,7 @@ function showItem(i: setting["windows"]["fixed"][0]) {
 }
 
 // 默认设置
-var default_setting: setting = {
+const default_setting: setting = {
     firstRun: false,
     settingVersion: app.getVersion(),
 
@@ -1009,8 +1010,8 @@ var default_setting: setting = {
 };
 
 function set_default_setting() {
-    for (let i in default_setting) {
-        if (i == "语言") {
+    for (const i in default_setting) {
+        if (i === "语言") {
             store.set(i, { 语言: app.getLocale() || "zh-HANS" });
         } else {
             store.set(i, default_setting[i]);
@@ -1020,17 +1021,17 @@ function set_default_setting() {
 
 // 增加设置项后，防止undefined
 function fix_setting_tree() {
-    if (store.get("settingVersion") == app.getVersion()) return;
-    var tree = "default_setting";
+    if (store.get("settingVersion") === app.getVersion()) return;
+    const tree = "default_setting";
     walk(tree);
     function walk(path: string) {
-        var x = eval(path);
-        if (Object.keys(x).length == 0) {
+        const x = eval(path);
+        if (Object.keys(x).length === 0) {
             path = path.slice(tree.length + 1); /* 去除开头主tree */
             if (store.get(path) === undefined) store.set(path, x);
         } else {
-            for (let i in x) {
-                var c_path = path + "." + i;
+            for (const i in x) {
+                let c_path = `${path}.${i}`;
                 if (x[i].constructor === Object) {
                     walk(c_path);
                 } else {

@@ -1,5 +1,5 @@
-const fs = require("fs") as typeof import("fs");
-const path = require("path") as typeof import("path");
+const fs = require("node:fs") as typeof import("fs");
+const path = require("node:path") as typeof import("path");
 
 const { clipboard, shell } = require("electron") as typeof import("electron");
 
@@ -29,7 +29,7 @@ import reload_svg from "../assets/icons/reload.svg";
 
 const contentEl = document.getElementById("content") as HTMLElement;
 
-let x = new URLSearchParams(location.search);
+const x = new URLSearchParams(location.search);
 let nowPath = "/";
 if (x.get("path")) {
     nowPath = x.get("path");
@@ -48,7 +48,7 @@ type file = {
 function entry(directory: string) {
     const entries = fs.readdirSync(directory, { withFileTypes: true });
 
-    let l: file[] = [];
+    const l: file[] = [];
 
     for (const entry of entries) {
         const fullPath = path.join(directory, entry.name);
@@ -94,12 +94,12 @@ let shiftSelect: string[] = [];
 function render(directory: file[]) {
     contentEl.innerHTML = "";
 
-    let s = sort(directory);
+    const s = sort(directory);
     console.log(s);
 
     // TODO 虚拟列表 虚拟阵列
-    for (let i of s) {
-        let iEl = el("div", [i.isDirectory ? el("span", "📂") : el("span", "📄"), el("span", i.name)]);
+    for (const i of s) {
+        const iEl = el("div", [i.isDirectory ? el("span", "📂") : el("span", "📄"), el("span", i.name)]);
         contentEl.append(iEl);
         iEl.setAttribute("data-path", i.name);
         iEl.setAttribute("data-dir", i.isDirectory ? "1" : "0");
@@ -107,10 +107,10 @@ function render(directory: file[]) {
     }
 
     contentEl.onclick = (e) => {
-        let eventPath = e.composedPath() as HTMLElement[];
+        const eventPath = e.composedPath() as HTMLElement[];
         let targetPath = ".";
         let isDir = false;
-        for (let i of eventPath) {
+        for (const i of eventPath) {
             if (i.getAttribute("data-path")) {
                 targetPath = i.getAttribute("data-path");
                 isDir = i.getAttribute("data-dir") === "1";
@@ -119,7 +119,7 @@ function render(directory: file[]) {
         }
         console.log(targetPath);
         if (e.ctrlKey) {
-            for (let i of shiftSelect) {
+            for (const i of shiftSelect) {
                 if (!select.includes(i)) {
                     select.push(i);
                 }
@@ -151,7 +151,7 @@ function selectEl(l?: string[]) {
     if (!l) l = select;
     console.log(l);
     contentEl.querySelectorAll(".selected").forEach((i) => i.classList.remove("selected"));
-    for (let i of l) {
+    for (const i of l) {
         contentEl.querySelector(`[data-path="${i}"]`)?.classList.add("selected");
     }
 }
@@ -163,7 +163,7 @@ function selectEl(l?: string[]) {
 
 function dotdot() {
     // 根据nowpath获取上一级路径
-    let p = path.dirname(nowPath);
+    const p = path.dirname(nowPath);
     if (p === nowPath) {
         return;
     }
@@ -189,11 +189,11 @@ function reflash() {
 function copy() {
     let fileList = getFullSelect();
     console.log(fileList);
-    fileList = fileList.map((i) => "file://" + path.join(nowPath, i));
+    fileList = fileList.map((i) => `file://${path.join(nowPath, i)}`);
     clipboard.writeText(fileList.join("\n")); // TODO 系统级api
 }
 
-var isCut = false;
+let isCut = false;
 
 function cut() {
     isCut = true;
@@ -205,12 +205,12 @@ function paste() {
     fileList = fileList.map((i) => i.replace("file://", ""));
     // todo 重名检测
     if (isCut) {
-        for (let i of fileList) {
+        for (const i of fileList) {
             fs.renameSync(i, path.join(nowPath, i));
         }
         isCut = false;
     } else {
-        for (let i of fileList) {
+        for (const i of fileList) {
             fs.copyFileSync(i, path.join(nowPath, i));
         }
     }
@@ -220,8 +220,8 @@ function paste() {
 }
 
 async function rename() {
-    if (select.length != 1) return;
-    let name = await prompt("请输入新文件名");
+    if (select.length !== 1) return;
+    const name = await prompt("请输入新文件名");
     // todo 重名检测
     if (!name) return;
     fs.renameSync(path.join(nowPath, select[0]), path.join(nowPath, name));
@@ -231,12 +231,12 @@ async function rename() {
 }
 
 async function newDir() {
-    let name = await prompt("请输入文件夹名");
+    const name = await prompt("请输入文件夹名");
     // todo 重名检测
     if (!name) return;
     fs.mkdirSync(path.join(nowPath, name));
     if (select.length) {
-        for (let i of select) {
+        for (const i of select) {
             fs.renameSync(path.join(nowPath, i), path.join(nowPath, name, i));
         }
         select = [];
@@ -246,53 +246,53 @@ async function newDir() {
 }
 
 function zip() {
-    let stream = Seven.add(path.basename(select[0]), getFullSelect(), { $progress: true });
+    const stream = Seven.add(path.basename(select[0]), getFullSelect(), { $progress: true });
 }
 
 function unzip() {
     // 分卷识别
-    let files: string[] = [];
-    let fenjuan: string[] = [];
-    x: for (let i of select) {
-        let p: [RegExp, string][] = [
+    const files: string[] = [];
+    const fenjuan: string[] = [];
+    lx: for (const i of select) {
+        const p: [RegExp, string][] = [
             [/\.\d{3}$/, ".001"],
             [/\.part\d{2}\.rar$/, ".part01.rar"],
             [/\.part\d{3}\.rar$/, ".part001.rar"],
             [/\.z\d{2}/, ""],
             [/\.r\d{2}/, ""],
         ];
-        for (let pp of p) {
+        for (const pp of p) {
             if (i.match(pp[0])) {
-                let basename = i.replace(pp[0], "");
+                const basename = i.replace(pp[0], "");
                 if (!fenjuan.includes(basename)) {
                     fenjuan.push(basename);
                     if (pp[1]) files.push(pp[1]);
                 }
-                continue x;
+                continue lx;
             }
         }
         files.push(i);
     }
     // TODO 重名提醒
-    for (let i of files) {
+    for (const i of files) {
         e(i);
     }
     function e(file: string) {
-        let stream0 = Seven.list(file);
+        const stream0 = Seven.list(file);
         stream0.on("end", () => {
-            let l = stream0.info.get(""); // TODO 具体信息
+            const l = stream0.info.get(""); // TODO 具体信息
             let stream1: Seven.ZipStream;
             let targetPath = "";
             if (l === "1") {
                 targetPath = nowPath;
                 stream1 = Seven.extractFull(file, targetPath);
             } else {
-                let dirName = path.basename(file);
+                const dirName = path.basename(file);
                 targetPath = path.join(nowPath, dirName);
                 fs.mkdirSync(targetPath);
                 stream1 = Seven.extractFull(file, targetPath);
             }
-            let prePath = nowPath;
+            const prePath = nowPath;
             stream1.on("end", () => {
                 if (nowPath === prePath) {
                     render(entry(nowPath));
@@ -305,8 +305,8 @@ function unzip() {
 }
 
 function moveToBin() {
-    let fileList = getFullSelect();
-    for (let i of fileList) {
+    const fileList = getFullSelect();
+    for (const i of fileList) {
         shell.trashItem(i);
     }
     render(entry(nowPath));
@@ -315,8 +315,8 @@ function moveToBin() {
 }
 
 function rm() {
-    let fileList = getFullSelect();
-    for (let i of fileList) {
+    const fileList = getFullSelect();
+    for (const i of fileList) {
         fs.unlinkSync(i);
     }
     render(entry(nowPath));
@@ -331,7 +331,7 @@ function switchHidden(h: boolean) {
 }
 
 const opraEl = document.getElementById("opra");
-let opra = {
+const opra = {
     dotdot: { fun: dotdot, icon: up_svg },
     reflash: { fun: reflash, icon: reload_svg },
     copy: { fun: copy, icon: copy_svg },
@@ -347,7 +347,7 @@ let opra = {
 };
 
 function createOpraEl(type: keyof typeof opra) {
-    let opraEl = el("div");
+    const opraEl = el("div");
     opraEl.className = "opra";
     opraEl.innerHTML = `<img src="${opra[type].icon}" alt="">`;
     opraEl.setAttribute("opra-type", type);
@@ -358,8 +358,8 @@ function createOpraEl(type: keyof typeof opra) {
         };
     }
     if (opra[type].fun.length === 1) {
-        let checkbox = el("input", { type: "checkbox" });
-        let label = el("label", checkbox);
+        const checkbox = el("input", { type: "checkbox" });
+        const label = el("label", checkbox);
         opraEl.append(label);
         checkbox.onchange = () => {
             opra[type].fun(checkbox.checked);
@@ -368,7 +368,7 @@ function createOpraEl(type: keyof typeof opra) {
     return opraEl;
 }
 
-let opraList: (keyof typeof opra)[] = [
+const opraList: (keyof typeof opra)[] = [
     "dotdot",
     "reflash",
     "copy",
@@ -382,7 +382,7 @@ let opraList: (keyof typeof opra)[] = [
     "delete",
     "hidden",
 ];
-let menuList: (keyof typeof opra)[] = ["copy", "cut", "paste", "newDir", "rename", "moveToBin", "zip", "unzip"];
+const menuList: (keyof typeof opra)[] = ["copy", "cut", "paste", "newDir", "rename", "moveToBin", "zip", "unzip"];
 
 opraEl.append(...opraList.map((i) => createOpraEl(i)));
 

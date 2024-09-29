@@ -1,14 +1,14 @@
 const { ipcRenderer } = require("electron") as typeof import("electron");
 const Store = require("electron-store") as typeof import("electron-store");
 
-import { DownloadItem } from "../../types";
+import type { DownloadItem } from "../../types";
 
 import list from "../../../lib/list";
 
 // TODO history
-let download_store = new Store({ name: "download" });
+const download_store = new Store({ name: "download" });
 
-let aria2_port = NaN;
+let aria2_port = Number.NaN;
 
 ipcRenderer.on("download", (_e, type: string, arg) => {
     switch (type) {
@@ -44,29 +44,29 @@ function aria2(m: string, p: any[]) {
     });
 }
 
-let x = new URLSearchParams(location.search);
+const x = new URLSearchParams(location.search);
 
 if (x.get("url")) {
     ipcRenderer.send("tab_view", "download", x.get("url"));
 }
 
 function create_download_card(params: DownloadItem) {
-    let el = document.createElement("div");
-    let name = document.createElement("div");
-    let icon = document.createElement("div");
+    const el = document.createElement("div");
+    const name = document.createElement("div");
+    const icon = document.createElement("div");
 
-    let buttons = document.createElement("div");
-    let start = document.createElement("div");
-    let pause = document.createElement("div");
-    let stop = document.createElement("div");
-    let restart = document.createElement("div");
-    let open = document.createElement("div");
-    let open_in = document.createElement("div");
-    let remove = document.createElement("div");
-    let info = document.createElement("div");
+    const buttons = document.createElement("div");
+    const start = document.createElement("div");
+    const pause = document.createElement("div");
+    const stop = document.createElement("div");
+    const restart = document.createElement("div");
+    const open = document.createElement("div");
+    const open_in = document.createElement("div");
+    const remove = document.createElement("div");
+    const info = document.createElement("div");
 
-    let pro = document.createElement("progress");
-    let speed = document.createElement("div");
+    const pro = document.createElement("progress");
+    const speed = document.createElement("div");
 
     buttons.append(start, pause, stop, restart, open, open_in, remove, info);
 
