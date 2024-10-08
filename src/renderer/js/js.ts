@@ -1,23 +1,23 @@
 /// <reference types="vite/client" />
 
 const { ipcRenderer, clipboard } = require("electron") as typeof import("electron");
-import { ele, type ElType, image, input, pureStyle, txt, view } from "dkh-ui";
+import { button, ele, type ElType, image, input, pureStyle, txt, view } from "dkh-ui";
 import store from "../../../lib/store/renderStore";
 
 const setting = store;
 
-import minimize_svg from "../assets/icons/minimize.svg";
-import maximize_svg from "../assets/icons/maximize.svg";
-import unmaximize_svg from "../assets/icons/unmaximize.svg";
-import close_svg from "../assets/icons/close.svg";
-import reload_svg from "../assets/icons/reload.svg";
 import browser_svg from "../assets/icons/browser.svg";
 import search_svg from "../assets/icons/search.svg";
 
 pureStyle();
 
-function icon(src: string) {
-    return image(src, "icon").class("icon");
+// @auto-path:../assets/icons/$.svg
+function icon(name: string) {
+    return image(new URL(`../assets/icons/${name}.svg`, import.meta.url).href, "icon").class("icon");
+}
+// @auto-path:../assets/icons/$.svg
+function iconEl(name: string) {
+    return button(image(new URL(`../assets/icons/${name}.svg`, import.meta.url).href, "icon").class("icon"));
 }
 
 /** browserwindow id */
@@ -29,23 +29,17 @@ const chrome_size_fixed = false;
 /** 用户目录 */
 let userDataPath = "";
 
-const w_mini = view()
-    .add(icon(minimize_svg))
-    .on("click", () => {
-        ipcRenderer.send("win", pid, "mini");
-        set_chrome_size("hide");
-    });
-const w_max = view()
-    .add(icon(maximize_svg))
-    .on("click", () => {
-        ipcRenderer.send("win", pid, "max");
-        set_chrome_size("hide");
-    });
-const w_close = view()
-    .add(icon(close_svg))
-    .on("click", () => {
-        ipcRenderer.send("win", pid, "close");
-    });
+const w_mini = iconEl("minimize").on("click", () => {
+    ipcRenderer.send("win", pid, "mini");
+    set_chrome_size("hide");
+});
+const w_max = iconEl("maximize").on("click", () => {
+    ipcRenderer.send("win", pid, "max");
+    set_chrome_size("hide");
+});
+const w_close = iconEl("close").on("click", () => {
+    ipcRenderer.send("win", pid, "close");
+});
 
 const system_el = view().attr({ id: "system" });
 
@@ -54,10 +48,10 @@ system_el.add([w_mini, w_max, w_close]);
 ipcRenderer.on("win", (_e, a, arg) => {
     switch (a) {
         case "max":
-            w_max.clear().add(icon(unmaximize_svg));
+            w_max.clear().add(icon("unmaximize"));
             break;
         case "unmax":
-            w_max.clear().add(icon(maximize_svg));
+            w_max.clear().add(icon("maximize"));
             break;
         case "id":
             pid = arg;
@@ -86,19 +80,15 @@ ipcRenderer.on("win", (_e, a, arg) => {
 const buttons = view().attr({ id: "buttons" });
 const url_el = ele("span").attr({ id: "url" });
 
-const b_reload = view()
-    .add(icon(reload_svg))
-    .on("click", () => {
-        ipcRenderer.send("tab_view", topestView, "reload");
-        set_chrome_size("hide");
-    });
+const b_reload = iconEl("reload").on("click", () => {
+    ipcRenderer.send("tab_view", topestView, "reload");
+    set_chrome_size("hide");
+});
 
-const show_tree = view()
-    .add(icon(reload_svg))
-    .on("click", () => {
-        set_chrome_size("full");
-        render_tree();
-    });
+const show_tree = iconEl("reload").on("click", () => {
+    set_chrome_size("full");
+    render_tree();
+});
 
 buttons.add([b_reload, show_tree]);
 
@@ -262,7 +252,7 @@ function r_search_l() {
     search_list_el.clear();
     for (const i of search_list) {
         const el = view().data({ url: i.url });
-        const icon_el = view().add(icon(i.icon));
+        const icon_el = view().add(image(i.icon, "icon").class("icon"));
         const text = view().add(i.text);
         el.add([icon_el, text]);
         el.on("pointerdown", (_e) => {
