@@ -2,21 +2,17 @@
 
 const { ipcRenderer, clipboard } = require("electron") as typeof import("electron");
 import { ele, type ElType, image, input, pureStyle, txt, view } from "dkh-ui";
-const Store = require("electron-store") as typeof import("electron-store");
-import type { setting as settingT } from "../../types";
+import store from "../../../lib/store/renderStore";
 
-const setting = new Store().store as unknown as settingT;
+const setting = store;
 
 import minimize_svg from "../assets/icons/minimize.svg";
 import maximize_svg from "../assets/icons/maximize.svg";
 import unmaximize_svg from "../assets/icons/unmaximize.svg";
 import close_svg from "../assets/icons/close.svg";
-import left_svg from "../assets/icons/left.svg";
-import right_svg from "../assets/icons/right.svg";
 import reload_svg from "../assets/icons/reload.svg";
 import browser_svg from "../assets/icons/browser.svg";
 import search_svg from "../assets/icons/search.svg";
-import add_svg from "../assets/icons/add.svg";
 
 pureStyle();
 
@@ -55,7 +51,7 @@ const system_el = view().attr({ id: "system" });
 
 system_el.add([w_mini, w_max, w_close]);
 
-ipcRenderer.on("win", (e, a, arg) => {
+ipcRenderer.on("win", (_e, a, arg) => {
     switch (a) {
         case "max":
             w_max.clear().add(icon(unmaximize_svg));
@@ -106,7 +102,7 @@ const show_tree = view()
 
 buttons.add([b_reload, show_tree]);
 
-const barEl = view()
+view()
     .add([buttons, view().attr({ id: "url_bar" }).add(url_el), system_el])
     .addInto()
     .attr({ id: "bar" });
@@ -163,7 +159,7 @@ let activeViews = [];
 const myViews = [];
 let topestView = Number.NaN;
 
-ipcRenderer.on("url", (e, view, type, arg) => {
+ipcRenderer.on("url", (_e, view, type, arg) => {
     switch (type) {
         case "new":
             topestView = view;
@@ -235,9 +231,10 @@ let suggestions_url = "";
 init_search();
 
 function init_search() {
-    default_engine = setting.searchEngine.default;
-    search_url = setting.searchEngine.engine[default_engine].url;
-    suggestions_url = setting.searchEngine.engine[default_engine].sug;
+    default_engine = setting.get("searchEngine.default");
+    const e = setting.get("searchEngine.engine");
+    search_url = e[default_engine].url;
+    suggestions_url = e[default_engine].sug;
 }
 
 function to_search_url(str: string) {
@@ -268,7 +265,7 @@ function r_search_l() {
         const icon_el = view().add(icon(i.icon));
         const text = view().add(i.text);
         el.add([icon_el, text]);
-        el.on("pointerdown", (e) => {
+        el.on("pointerdown", (_e) => {
             ipcRenderer.send("tab_view", null, "add", i.url);
             set_chrome_size("normal");
         });
@@ -287,6 +284,7 @@ type tree = {
     };
 };
 
+// @ts-ignore
 const treeStore = new Store({ name: "tree" });
 const tree = (treeStore.store || {}) as tree;
 
@@ -400,7 +398,7 @@ function render_tree() {
 window.r = render_tree;
 
 // 同步树状态，一般由其他窗口发出
-ipcRenderer.on("view", (e, type: "add" | "close" | "update" | "move", id: number, pid: number, wid: number, op) => {
+ipcRenderer.on("view", (_e, type: "add" | "close" | "update" | "move", id: number, pid: number, wid: number, op) => {
     switch (type) {
         case "add":
             cardAdd(id, pid);

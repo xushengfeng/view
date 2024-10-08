@@ -12,7 +12,7 @@ import {
     Menu,
     session,
 } from "electron";
-const Store = require("electron-store") as typeof import("electron-store");
+import Store from "../../lib/store/store";
 import * as path from "node:path";
 const run_path = path.join(path.resolve(__dirname, ""), "../../");
 import { spawn, exec } from "node:child_process";
@@ -20,6 +20,8 @@ import * as fs from "node:fs";
 import { t, lan, getLans, matchFitLan } from "../../lib/translate/translate";
 import url from "node:url";
 import type { setting, DownloadItem } from "../types";
+
+const store = new Store();
 
 // 自定义用户路径
 try {
@@ -38,8 +40,6 @@ try {
 ipcMain.on("run_path", (event) => {
     event.returnValue = run_path;
 });
-
-const store = new Store();
 
 let /** 是否开启开发模式 */ dev: boolean;
 // 自动开启开发者模式
@@ -93,10 +93,6 @@ app.whenReady().then(() => {
     if (store.get("firstRun") === undefined) setDefaultSetting();
     fixSettingTree();
 
-    // 初始化设置
-    Store.initRenderer();
-
-    // @ts-ignore
     nativeTheme.themeSource = store.get("appearance.theme");
 
     const template = [
@@ -425,7 +421,9 @@ type tree = {
     };
 };
 
+// @ts-ignore
 const tree_text_store = new Store({ name: "text" });
+// @ts-ignore
 const tree_store = new Store({ name: "tree" });
 
 if (!fs.existsSync(path.join(app.getPath("userData"), "capture"))) {
@@ -622,6 +620,7 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
 
     if (id) return id;
 
+    // @ts-ignore
     const l = (tree_store.get(`${pid}.next`) as tree[0]["next"]) || [];
     l.push(view_id);
     tree_store.set(`${pid}.next`, l);
@@ -682,6 +681,7 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
                 const wid = x[0];
                 const w = x[1];
                 if (w === main_window) {
+                    // @ts-ignore
                     const url = (tree_store.get(String(arg2)) as tree[0]).url;
                     createView(wid, url, null, arg2 as view_id);
                     break;
@@ -762,6 +762,7 @@ ipcMain.on("theme", (_e, v) => {
     store.set("appearance.theme", v);
 });
 
+// @ts-ignore
 const download_store = new Store({ name: "download" });
 
 let aria2_port = Number.NaN;
@@ -836,6 +837,7 @@ function check_global_aria2() {
 async function download(url: string) {
     if (!aria2_port) await aria2_start();
     aria2("addUri", [[url]]).then((x) => {
+        // @ts-ignore
         const l = (download_store.get("items") || []) as DownloadItem[];
         l.unshift({
             id: x.id,
