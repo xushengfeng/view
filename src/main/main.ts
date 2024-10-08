@@ -17,7 +17,7 @@ import * as path from "node:path";
 const run_path = path.join(path.resolve(__dirname, ""), "../../");
 import { spawn, exec } from "node:child_process";
 import * as fs from "node:fs";
-import { t, lan } from "../../lib/translate/translate";
+import { t, lan, getLans, matchFitLan } from "../../lib/translate/translate";
 import url from "node:url";
 import type { setting, DownloadItem } from "../types";
 
@@ -49,10 +49,13 @@ if (process.argv.includes("-d") || import.meta.env.DEV) {
     dev = false;
 }
 
-function renderer_url(file_name: string, q?: Electron.LoadFileOptions) {
-    if (!q) {
-        q = { query: { config_path: app.getPath("userData") } };
-    } else if (!q.query) {
+function renderer_url(
+    file_name: string,
+    q: Electron.LoadFileOptions = {
+        query: { config_path: app.getPath("userData") },
+    },
+) {
+    if (!q.query) {
         q.query = { config_path: app.getPath("userData") };
     } else {
         q.query.config_path = app.getPath("userData");
@@ -81,13 +84,14 @@ function renderer_path(window: BrowserWindow | Electron.WebContents, file_name: 
     window.loadURL(renderer_url(file_name, q));
 }
 
+// @ts-ignore
 lan(store.get("lan"));
 
 app.commandLine.appendSwitch("enable-experimental-web-platform-features", "enable");
 
 app.whenReady().then(() => {
-    if (store.get("firstRun") === undefined) set_default_setting();
-    fix_setting_tree();
+    if (store.get("firstRun") === undefined) setDefaultSetting();
+    fixSettingTree();
 
     // 初始化设置
     Store.initRenderer();
@@ -139,73 +143,7 @@ app.whenReady().then(() => {
                 { label: t("关闭"), role: "close" },
             ],
         },
-        // { role: 'editMenu' }
-        {
-            label: t("编辑"),
-            submenu: [
-                {
-                    label: t("撤销"),
-                    click: (_i, w) => {
-                        w.webContents.undo();
-                    },
-                    accelerator: "CmdOrCtrl+Z",
-                },
-                {
-                    label: t("重做"),
-                    click: (_i, w) => {
-                        w.webContents.redo();
-                    },
-                    accelerator: isMac ? "Cmd+Shift+Z" : "Ctrl+Y",
-                },
-                { type: "separator" },
-                {
-                    label: t("剪切"),
-                    click: (_i, w) => {
-                        w.webContents.cut();
-                    },
-                    accelerator: "CmdOrCtrl+X",
-                },
-                {
-                    label: t("复制"),
-                    click: (_i, w) => {
-                        w.webContents.copy();
-                    },
-                    accelerator: "CmdOrCtrl+C",
-                },
-                {
-                    label: t("粘贴"),
-                    click: (_i, w) => {
-                        w.webContents.paste();
-                    },
-                    accelerator: "CmdOrCtrl+V",
-                },
-                {
-                    label: t("删除"),
-                    click: (_i, w) => {
-                        w.webContents.delete();
-                    },
-                },
-                {
-                    label: t("全选"),
-                    click: (_i, w) => {
-                        w.webContents.selectAll();
-                    },
-                    accelerator: "CmdOrCtrl+A",
-                },
-                { type: "separator" },
-                ...(isMac
-                    ? [
-                          {
-                              label: t("朗读"),
-                              submenu: [
-                                  { label: t("开始朗读"), role: "startSpeaking" },
-                                  { label: t("停止朗读"), role: "stopSpeaking" },
-                              ],
-                          },
-                      ]
-                    : []),
-            ],
-        },
+        { role: "editMenu" },
         {
             label: t("视图"),
             submenu: [
@@ -286,20 +224,6 @@ ipcMain.on("setting", async (event, arg, arg1, arg2) => {
     switch (arg) {
         case "save_err": {
             console.log("保存设置失败");
-            break;
-            store.clear();
-            set_default_setting();
-            const resolve = await dialog.showMessageBox({
-                title: t("重启"),
-                message: `${t("已恢复默认设置，部分设置需要重启")} ${app.name} ${t("生效")}`,
-                buttons: [t("重启"), t("稍后")],
-                defaultId: 0,
-                cancelId: 1,
-            });
-            if (resolve.response === 0) {
-                app.relaunch();
-                app.exit(0);
-            }
             break;
         }
         case "reload":
@@ -445,7 +369,12 @@ function set_chrome_size(pid: bwin_id) {
     const main_window = winL.get(pid);
     const x = winToChrome.get(pid);
     const o = { full: main_window.getContentSize()[1], normal: 24, hide: 0 };
-    x.view.setBounds({ x: 0, y: 0, width: main_window.getContentSize()[0], height: o[x.size] });
+    x.view.setBounds({
+        x: 0,
+        y: 0,
+        width: main_window.getContentSize()[0],
+        height: o[x.size],
+    });
 }
 
 ipcMain.on("win", (e, pid, type) => {
@@ -517,7 +446,8 @@ function get_real_url(url: string) {
 }
 
 /** 创建浏览器页面 */
-async function createView(window_name: bwin_id, url: string, pid: view_id, id?: view_id) {
+async function createView(_window_name: bwin_id, url: string, pid: view_id, id?: view_id) {
+    let window_name = _window_name;
     const main_window = winL.get(window_name);
     const chrome = winToChrome.get(window_name).view;
 
@@ -565,13 +495,13 @@ async function createView(window_name: bwin_id, url: string, pid: view_id, id?: 
         main_window.removeBrowserView(search_view);
         viewL.delete(view_id);
     });
-    wc.on("page-title-updated", (event, title) => {
+    wc.on("page-title-updated", (_event, title) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "title", title);
         tree_store.set(`${view_id}.title`, title);
 
         sendViews(window_name, "update", view_id, null, null, { title });
     });
-    wc.on("page-favicon-updated", (event, favlogo) => {
+    wc.on("page-favicon-updated", (_event, favlogo) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "icon", favlogo);
         tree_store.set(`${view_id}.logo`, favlogo[0]);
         sendViews(window_name, "update", view_id, null, null, { icon: favlogo });
@@ -580,11 +510,11 @@ async function createView(window_name: bwin_id, url: string, pid: view_id, id?: 
         createView(window_name, event.url, view_id);
         event.preventDefault();
     });
-    wc.on("did-navigate", (event, url) => {
+    wc.on("did-navigate", (_event, url) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "url", url);
         sendViews(window_name, "update", view_id, null, null, { url: url });
     });
-    wc.on("did-navigate-in-page", (event, url, isMainFrame) => {
+    wc.on("did-navigate-in-page", (_event, url, isMainFrame) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "url", url);
         if (isMainFrame) tree_store.set(`${view_id}.url`, url);
         sendViews(window_name, "update", view_id, null, null, { url: url });
@@ -595,7 +525,7 @@ async function createView(window_name: bwin_id, url: string, pid: view_id, id?: 
     wc.on("did-stop-loading", () => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "load", false);
     });
-    wc.on("did-fail-load", (event, err_code, err_des) => {
+    wc.on("did-fail-load", (_event, err_code, err_des) => {
         renderer_path(wc, "browser_bg.html", {
             query: { type: "did-fail-load", err_code: String(err_code), err_des },
         });
@@ -605,6 +535,7 @@ async function createView(window_name: bwin_id, url: string, pid: view_id, id?: 
         let image = await wc.capturePage();
         fs.writeFile(
             path.join(app.getPath("userData"), "capture", `${view_id}.jpg`),
+            // @ts-ignore
             image
                 .resize({
                     height: Math.floor(image.getSize().height / 2),
@@ -633,7 +564,9 @@ async function createView(window_name: bwin_id, url: string, pid: view_id, id?: 
         }
     });
     wc.on("render-process-gone", () => {
-        renderer_path(wc, "browser_bg.html", { query: { type: "render-process-gone" } });
+        renderer_path(wc, "browser_bg.html", {
+            query: { type: "render-process-gone" },
+        });
         if (dev) wc.openDevTools();
     });
     wc.on("unresponsive", () => {
@@ -644,11 +577,13 @@ async function createView(window_name: bwin_id, url: string, pid: view_id, id?: 
         wc.loadURL(url);
     });
     wc.on("certificate-error", () => {
-        renderer_path(wc, "browser_bg.html", { query: { type: "certificate-error" } });
+        renderer_path(wc, "browser_bg.html", {
+            query: { type: "certificate-error" },
+        });
         if (dev) wc.openDevTools();
     });
 
-    wc.on("context-menu", (e, p) => {
+    wc.on("context-menu", (_e, p) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("win", "menu", p);
     });
 
@@ -657,7 +592,7 @@ async function createView(window_name: bwin_id, url: string, pid: view_id, id?: 
         download(i.getURL());
     });
 
-    wc.session.setPermissionCheckHandler((w, p, ro) => {
+    wc.session.setPermissionCheckHandler((_w, _p, _ro) => {
         return true;
     });
     wc.session.setPermissionRequestHandler((w, p, cb) => {
@@ -822,7 +757,7 @@ ipcMain.on("view", (e, type, arg) => {
     }
 });
 
-ipcMain.on("theme", (e, v) => {
+ipcMain.on("theme", (_e, v) => {
     nativeTheme.themeSource = v;
     store.set("appearance.theme", v);
 });
@@ -902,7 +837,13 @@ async function download(url: string) {
     if (!aria2_port) await aria2_start();
     aria2("addUri", [[url]]).then((x) => {
         const l = (download_store.get("items") || []) as DownloadItem[];
-        l.unshift({ id: x.id, createdAt: new Date().getTime(), filename: "", status: "pending", url });
+        l.unshift({
+            id: x.id,
+            createdAt: new Date().getTime(),
+            filename: "",
+            status: "pending",
+            url,
+        });
         download_store.set("items", l);
     });
     check_global_aria2_run = true;
@@ -967,13 +908,16 @@ function showItem(i: setting["windows"]["fixed"][0]) {
 }
 
 // 默认设置
-const default_setting: setting = {
+const defaultSetting: setting = {
     firstRun: false,
     settingVersion: app.getVersion(),
 
     lan: "zh-HANS",
 
-    appearance: { theme: "system", size: { normal: { w: 800, h: 600, m: false } } },
+    appearance: {
+        theme: "system",
+        size: { normal: { w: 800, h: 600, m: false } },
+    },
 
     searchEngine: {
         default: "Bing",
@@ -1011,36 +955,42 @@ const default_setting: setting = {
     windows: { desktop: [], fixed: [] },
 };
 
-function set_default_setting() {
-    for (const i in default_setting) {
+function matchBestLan() {
+    const supportLan = getLans();
+
+    for (const lan of app.getPreferredSystemLanguages()) {
+        const l = matchFitLan(lan, supportLan, "");
+        if (l) return l;
+    }
+    return "zh-HANS";
+}
+
+function setDefaultSetting() {
+    for (const i in defaultSetting) {
         if (i === "语言") {
-            store.set(i, { 语言: app.getLocale() || "zh-HANS" });
+            const language = matchBestLan();
+            store.set(i, { 语言: language });
         } else {
-            store.set(i, default_setting[i]);
+            store.set(i, defaultSetting[i]);
         }
     }
 }
 
 // 增加设置项后，防止undefined
-function fix_setting_tree() {
-    if (store.get("settingVersion") === app.getVersion()) return;
-    const tree = "default_setting";
-    walk(tree);
-    function walk(path: string) {
-        const x = eval(path);
-        if (Object.keys(x).length === 0) {
-            path = path.slice(tree.length + 1); /* 去除开头主tree */
-            if (store.get(path) === undefined) store.set(path, x);
-        } else {
-            for (const i in x) {
-                let c_path = `${path}.${i}`;
-                if (x[i].constructor === Object) {
-                    walk(c_path);
-                } else {
-                    c_path = c_path.slice(tree.length + 1); /* 去除开头主tree */
-                    if (store.get(c_path) === undefined) store.set(c_path, x[i]);
-                }
+function fixSettingTree() {
+    if (store.get("设置版本") === app.getVersion() && !dev) return;
+    walk([]);
+    function walk(path: string[]) {
+        const x = path.reduce((o, i) => o[i], defaultSetting);
+        for (const i in x) {
+            const cPath = path.concat([i]); // push
+            if (x[i].constructor === Object) {
+                walk(cPath);
+            } else {
+                const nPath = cPath.join(".");
+                if (store.get(nPath) === undefined) store.set(nPath, x[i]);
             }
         }
     }
+    store.set("设置版本", app.getVersion());
 }
