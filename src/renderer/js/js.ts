@@ -1,10 +1,11 @@
 /// <reference types="vite/client" />
 
 const { ipcRenderer, clipboard } = require("electron") as typeof import("electron");
+import { ele, type ElType, image, input, pureStyle, txt, view } from "dkh-ui";
 const Store = require("electron-store") as typeof import("electron-store");
-import type { setting } from "../../types";
+import type { setting as settingT } from "../../types";
 
-const setting = new Store().store as unknown as setting;
+const setting = new Store().store as unknown as settingT;
 
 import minimize_svg from "../assets/icons/minimize.svg";
 import maximize_svg from "../assets/icons/maximize.svg";
@@ -17,12 +18,10 @@ import browser_svg from "../assets/icons/browser.svg";
 import search_svg from "../assets/icons/search.svg";
 import add_svg from "../assets/icons/add.svg";
 
-function icon(src: string) {
-    return `<img src="${src}" class="icon">`;
-}
+pureStyle();
 
-function create_div() {
-    return document.createElement("div");
+function icon(src: string) {
+    return image(src, "icon").class("icon");
 }
 
 /** browserwindow id */
@@ -34,36 +33,35 @@ const chrome_size_fixed = false;
 /** 用户目录 */
 let userDataPath = "";
 
-const w_mini = document.createElement("div");
-const w_max = document.createElement("div");
-const w_close = document.createElement("div");
+const w_mini = view()
+    .add(icon(minimize_svg))
+    .on("click", () => {
+        ipcRenderer.send("win", pid, "mini");
+        set_chrome_size("hide");
+    });
+const w_max = view()
+    .add(icon(maximize_svg))
+    .on("click", () => {
+        ipcRenderer.send("win", pid, "max");
+        set_chrome_size("hide");
+    });
+const w_close = view()
+    .add(icon(close_svg))
+    .on("click", () => {
+        ipcRenderer.send("win", pid, "close");
+    });
 
-const system_el = document.getElementById("system_right");
+const system_el = view().attr({ id: "system" });
 
-w_mini.innerHTML = icon(minimize_svg);
-w_max.innerHTML = icon(maximize_svg);
-w_close.innerHTML = icon(close_svg);
-w_mini.onclick = () => {
-    ipcRenderer.send("win", pid, "mini");
-    set_chrome_size("hide");
-};
-w_max.onclick = () => {
-    ipcRenderer.send("win", pid, "max");
-    set_chrome_size("hide");
-};
-w_close.onclick = () => {
-    ipcRenderer.send("win", pid, "close");
-};
-
-system_el.append(w_mini, w_max, w_close);
+system_el.add([w_mini, w_max, w_close]);
 
 ipcRenderer.on("win", (e, a, arg) => {
     switch (a) {
         case "max":
-            w_max.innerHTML = icon(unmaximize_svg);
+            w_max.clear().add(icon(unmaximize_svg));
             break;
         case "unmax":
-            w_max.innerHTML = icon(maximize_svg);
+            w_max.clear().add(icon(maximize_svg));
             break;
         case "id":
             pid = arg;
@@ -89,33 +87,39 @@ ipcRenderer.on("win", (e, a, arg) => {
     }
 });
 
-const buttons = document.getElementById("buttoms");
-const url_el = document.getElementById("url");
+const buttons = view().attr({ id: "buttons" });
+const url_el = ele("span").attr({ id: "url" });
 
-const b_reload = document.createElement("div");
-b_reload.innerHTML = icon(reload_svg);
-b_reload.onclick = () => {
-    ipcRenderer.send("tab_view", topestView, "reload");
-    set_chrome_size("hide");
-};
+const b_reload = view()
+    .add(icon(reload_svg))
+    .on("click", () => {
+        ipcRenderer.send("tab_view", topestView, "reload");
+        set_chrome_size("hide");
+    });
 
-const show_tree = document.createElement("div");
-show_tree.innerHTML = icon(reload_svg);
-show_tree.onclick = () => {
-    set_chrome_size("full");
-    render_tree();
-};
+const show_tree = view()
+    .add(icon(reload_svg))
+    .on("click", () => {
+        set_chrome_size("full");
+        render_tree();
+    });
 
-buttons.append(b_reload, show_tree);
+buttons.add([b_reload, show_tree]);
+
+const barEl = view()
+    .add([buttons, view().attr({ id: "url_bar" }).add(url_el), system_el])
+    .addInto()
+    .attr({ id: "bar" });
 
 function set_chrome_size(type: "normal" | "hide" | "full") {
     if (type === "hide" && chrome_size_fixed) {
-        type = "normal";
+        chrome_size = "normal";
+    } else {
+        chrome_size = type;
     }
-    chrome_size = type;
-    ipcRenderer.send("win", pid, `${type}_chrome`);
-    if (type === "normal") {
-        search_list_el.innerHTML = "";
+    ipcRenderer.send("win", pid, `${chrome_size}_chrome`);
+    if (chrome_size === "normal") {
+        search_list_el.clear();
     }
 }
 
@@ -145,15 +149,13 @@ function set_url(url: string) {
         const l0 = hurl.slice(0, ss);
         const h = hurl.slice(ss, se);
         const l1 = hurl.slice(se);
-        const m = document.createElement("span");
-        m.innerText = h;
-        url_el.innerHTML = "";
-        url_el.append(l0, m, l1);
+        const m = txt();
+        m.sv(h);
+        url_el.clear().add([l0, m, l1]);
     } catch (error) {
-        const m = document.createElement("span");
-        m.innerText = url;
-        url_el.innerHTML = "";
-        url_el.append(m);
+        const m = txt();
+        m.sv(url);
+        url_el.clear().add(m);
     }
 }
 
@@ -183,38 +185,38 @@ ipcRenderer.on("url", (e, view, type, arg) => {
     }
 });
 
-const search_list_el = document.getElementById("search_list");
-let url_i: HTMLInputElement;
-url_el.onpointerdown = (e) => {
+const search_list_el = view().attr({ id: "search_list" }).addInto();
+url_el.on("pointerdown", (e) => {
     if ((e.target as HTMLElement).tagName === "INPUT") return;
     e.preventDefault();
-    url_i = document.createElement("input");
-    url_i.value = url_el.innerText;
-    url_el.innerHTML = "";
-    url_el.append(url_i);
-    url_i.setSelectionRange(0, url_i.value.length);
-    url_i.focus();
+    const url_i = input().sv(url_el.el.innerText);
+    url_el.clear().add(url_i);
+    url_i.el.setSelectionRange(0, url_i.gv.length);
+    url_i.el.focus();
     set_chrome_size("full");
     init_search();
-    url_i.oninput = () => {
-        search(url_i.value);
-        r_search_l();
-    };
-    url_i.onblur = () => {
-        set_url(url_i.value);
-        set_chrome_size("hide");
-    };
-};
+    url_i
+        .on("input", () => {
+            search(url_i.gv);
+            r_search_l();
+        })
+        .on("blur", () => {
+            set_url(url_i.gv);
+            set_chrome_size("hide");
+        });
+});
 
 function to_url(str: string) {
     if (str.match(/^:\/\//)) {
         return `https${str}`;
-    }if (str.match(/^[a-z]+:\/\//i)) {
+    }
+    if (str.match(/^[a-z]+:\/\//i)) {
         return str;
-    }if (str.match(/^[0-9a-fA-F]{40}$/)) {
+    }
+    if (str.match(/^[0-9a-fA-F]{40}$/)) {
         return `magnet:?xt=urn:btih:${str}`;
     }
-        return `https://${str}`;
+    return `https://${str}`;
 }
 
 const download_url = "view://download";
@@ -223,7 +225,7 @@ function to_more_url(url: string) {
     if (url.match(/^magnet:?xt=urn:/)) {
         return `${download_url}?url=${encodeURIComponent(url)}`;
     }
-        return url;
+    return url;
 }
 
 let default_engine = "";
@@ -260,24 +262,21 @@ function search(str: string) {
 }
 
 function r_search_l() {
-    search_list_el.innerHTML = "";
+    search_list_el.clear();
     for (const i of search_list) {
-        const el = create_div();
-        const icon_el = create_div();
-        const text = create_div();
-        el.setAttribute("data-url", i.url);
-        text.innerText = i.text;
-        icon_el.innerHTML = icon(i.icon);
-        el.append(icon_el, text);
-        el.onpointerdown = (e) => {
+        const el = view().data({ url: i.url });
+        const icon_el = view().add(icon(i.icon));
+        const text = view().add(i.text);
+        el.add([icon_el, text]);
+        el.on("pointerdown", (e) => {
             ipcRenderer.send("tab_view", null, "add", i.url);
             set_chrome_size("normal");
-        };
-        search_list_el.append(el);
+        });
+        search_list_el.add(el);
     }
 }
 
-const tree_el = document.getElementById("tree");
+const tree_el = view().attr({ id: "tree" }).addInto();
 
 type tree = {
     [id: number]: {
@@ -305,7 +304,7 @@ class Card extends HTMLElement {
     _image: string;
     _icon: string;
     _url: string;
-    childrenEl: HTMLElement;
+    childrenEl: ElType<HTMLElement>;
 
     constructor(id: number, title: string, next: number[], image: string) {
         super();
@@ -316,17 +315,15 @@ class Card extends HTMLElement {
     }
 
     connectedCallback() {
-        const bar = document.createElement("div");
-        const title = document.createElement("div");
-        const img = document.createElement("img");
+        const bar = view();
+        const title = view();
+        const img = image(this._image, "preview");
 
         this.setAttribute("data-id", this.view_id.toString());
 
-        title.innerText = this._title;
+        title.add(this._title);
 
-        img.src = this._image;
-
-        img.onclick = () => {
+        img.on("click", () => {
             // 切换到活跃标签页，若已关闭，超时建立新card，不超时则重启
             if (activeViews.includes(this.view_id)) {
                 ipcRenderer.send("tab_view", null, "switch", this.view_id);
@@ -340,17 +337,17 @@ class Card extends HTMLElement {
                 }
             }
             set_chrome_size("hide");
-        };
+        });
 
-        this.append(bar, title, img);
+        this.append(bar.el, title.el, img.el);
 
-        this.childrenEl = document.createElement("div");
-        this.append(this.childrenEl);
+        this.childrenEl = view();
+        this.append(this.childrenEl.el);
         if (this._next?.length > 0) {
-            this.childrenEl.innerHTML = "";
+            this.childrenEl.clear();
             for (const i of this._next) {
                 const child = create_card(i);
-                this.childrenEl.append(child);
+                this.childrenEl.add(child);
             }
         }
     }
@@ -395,10 +392,11 @@ function render_tree() {
     // TODO 虚拟列表
     for (let i = 0; i < Math.min(5, root.length); i++) {
         const x = create_card(root[i]);
-        tree_el.append(x);
+        tree_el.add(x);
     }
 }
 
+// @ts-ignore
 window.r = render_tree;
 
 // 同步树状态，一般由其他窗口发出
@@ -430,7 +428,7 @@ function cardAdd(id: number, parent: number) {
     const pCardEl = getCardById(parent);
     if (pCardEl) {
         const x = create_card(id);
-        pCardEl.childrenEl.insertBefore(x, pCardEl.childrenEl.firstChild);
+        pCardEl.childrenEl.el.insertBefore(x, pCardEl.childrenEl.el.firstChild);
     }
 }
 
@@ -454,99 +452,100 @@ function cardMove(id: number, newParent: number) {
     }
 }
 
-const menu_el = document.getElementById("menu");
+const menu_el = view().attr({ id: "menu", popover: "auto" }).addInto();
 function menu(params: Electron.ContextMenuParams) {
     set_chrome_size("full");
 
-    // @ts-ignore
-    menu_el.showPopover();
+    menu_el.el.showPopover();
 
-    menu_el.innerHTML = "";
+    menu_el.clear();
 
     if (params.selectionText) {
-        const copy = document.createElement("div");
-        copy.innerText = "复制";
-        copy.onclick = () => {
-            clipboard.writeText(params.selectionText.trim());
-        };
+        const copy = view()
+            .add("复制")
+            .on("click", () => {
+                clipboard.writeText(params.selectionText.trim());
+            });
 
-        const search = document.createElement("div");
-        search.innerText = `搜索“${params.selectionText.trim()}”`;
-        search.onclick = () => {
-            ipcRenderer.send("tab_view", null, "add", to_search_url(params.selectionText.trim()));
-        };
+        const search = view()
+            .add(`搜索“${params.selectionText.trim()}”`)
+            .on("click", () => {
+                ipcRenderer.send("tab_view", null, "add", to_search_url(params.selectionText.trim()));
+            });
 
-        menu_el.append(copy, search);
+        menu_el.add([copy, search]);
     }
 
     if (params.linkURL) {
-        const open = document.createElement("div");
-        open.innerText = "打开链接";
-        open.onclick = () => {
-            ipcRenderer.send("tab_view", null, "add", params.linkURL);
-        };
+        const open = view()
+            .add("打开链接")
+            .on("click", () => {
+                ipcRenderer.send("tab_view", null, "add", params.linkURL);
+            });
 
-        const copy = document.createElement("div");
-        copy.innerText = "复制链接";
-        copy.onclick = () => {
-            clipboard.writeText(params.linkURL);
-        };
+        const copy = view()
+            .add("复制链接")
+            .on("click", () => {
+                clipboard.writeText(params.linkURL);
+            });
 
-        menu_el.append(open, copy);
+        menu_el.add([open, copy]);
     }
 
     if (params.mediaType !== "none") {
-        const open = document.createElement("div");
-        open.innerText = "打开媒体";
-        open.onclick = () => {
-            ipcRenderer.send("tab_view", null, "add", params.srcURL);
-        };
+        const open = view()
+            .add("打开媒体")
+            .on("click", () => {
+                ipcRenderer.send("tab_view", null, "add", params.srcURL);
+            });
 
-        const copy = document.createElement("div");
-        copy.innerText = "复制链接";
-        copy.onclick = () => {
-            clipboard.writeText(params.srcURL);
-        };
+        const copy = view()
+            .add("复制链接")
+            .on("click", () => {
+                clipboard.writeText(params.srcURL);
+            });
 
-        const download = document.createElement("div");
-        download.innerText = "下载媒体";
-        download.onclick = () => {
-            ipcRenderer.send("tab_view", null, "download", params.srcURL);
-        };
+        const download = view()
+            .add("下载媒体")
+            .on("click", () => {
+                ipcRenderer.send("tab_view", null, "download", params.srcURL);
+            });
 
-        menu_el.append(open, copy, download);
+        menu_el.add([open, copy, download]);
     }
 
-    const inspect = document.createElement("div");
-    inspect.innerText = "检查";
-    inspect.onclick = () => {
-        ipcRenderer.send("tab_view", topestView, "inspect", { x: params.x, y: params.y });
-    };
+    const inspect = view()
+        .add("检查")
+        .on("click", () => {
+            ipcRenderer.send("tab_view", topestView, "inspect", { x: params.x, y: params.y });
+        });
 
-    menu_el.append(inspect);
+    menu_el.add(inspect);
 
     setTimeout(() => {
-        menu_el.style.left = `${Math.min(params.x, window.innerWidth - menu_el.offsetWidth)}px`;
-        menu_el.style.top = `${Math.min(params.y, window.innerHeight - menu_el.offsetHeight)}px`;
+        menu_el.style({
+            left: `${Math.min(params.x, window.innerWidth - menu_el.el.offsetWidth)}px`,
+            top: `${Math.min(params.y, window.innerHeight - menu_el.el.offsetHeight)}px`,
+        });
     }, 10);
 }
 
-menu_el.addEventListener("toggle", (e) => {
+menu_el.el.addEventListener("toggle", (e) => {
     // @ts-ignore
     if (e.newState === "closed") {
         set_chrome_size("hide");
     }
 });
 
-menu_el.onclick = hide_menu;
+menu_el.on("click", hide_menu);
 
 function hide_menu() {
     // @ts-ignore
     menu_el.hidePopover();
 }
 
-const site_about_el = document.getElementById("site_about");
-const permission_el = document.getElementById("permission");
+const site_about_el = view().attr({ popover: "auto", id: "site_about" }).addInto();
+const permission_el = view().addInto(site_about_el).attr({ id: "permission" });
 
 const site_p_list: Map<string, string[]> = new Map();
 ipcRenderer.on("site_about", (_e, p, url) => {
@@ -565,43 +564,41 @@ ipcRenderer.on("site_about", (_e, p, url) => {
 });
 
 function render_site_permission_requ() {
-    permission_el.innerHTML = "";
+    permission_el.clear();
     const url = now_url;
     const l = site_p_list.get(url) || [];
-    const t = document.createElement("div");
-    const lel = document.createElement("div");
-    t.innerText = `${new URL(url)}`;
+    const t = view();
+    const lel = view().add(`${new URL(url)}`);
     for (const i of l) {
-        const x = document.createElement("div");
-        const t = document.createElement("div");
-        t.innerText = i;
-        const al = document.createElement("div");
-        al.innerText = "allow";
-        const rj = document.createElement("div");
-        rj.innerText = "rj";
-        al.onclick = () => {
-            ipcRenderer.send("site_about", url, i, true);
-            set_chrome_size("hide");
-            site_p_list.set(
-                url,
-                l.filter((x) => x !== i)
-            );
-        };
-        rj.onclick = () => {
-            ipcRenderer.send("site_about", url, i, false);
-            set_chrome_size("hide");
-            site_p_list.set(
-                url,
-                l.filter((x) => x !== i)
-            );
-        };
-        x.append(t, al, rj);
-        lel.append(x);
+        const x = view();
+        const t = view().add(i);
+        const al = view()
+            .add("allow")
+            .on("click", () => {
+                ipcRenderer.send("site_about", url, i, true);
+                set_chrome_size("hide");
+                site_p_list.set(
+                    url,
+                    l.filter((x) => x !== i),
+                );
+            });
+        const rj = view()
+            .add("reject")
+            .on("click", () => {
+                ipcRenderer.send("site_about", url, i, false);
+                set_chrome_size("hide");
+                site_p_list.set(
+                    url,
+                    l.filter((x) => x !== i),
+                );
+            });
+        x.add([t, al, rj]);
+        lel.add(x);
     }
-    permission_el.append(t, lel);
+    permission_el.add([t, lel]);
 }
 
-site_about_el.addEventListener("toggle", (e) => {
+site_about_el.el.addEventListener("toggle", (e) => {
     // @ts-ignore
     if (e.newState === "closed") {
         set_chrome_size("hide");

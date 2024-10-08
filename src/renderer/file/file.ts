@@ -3,7 +3,7 @@ const path = require("node:path") as typeof import("path");
 
 const { clipboard, shell } = require("electron") as typeof import("electron");
 
-import { el } from "redom";
+import { check, label, txt, view } from "dkh-ui";
 
 const isWindow = process.platform === "win32";
 let winattr: typeof import("winattr");
@@ -27,7 +27,8 @@ import up_svg from "../assets/icons/up.svg";
 import eye_svg from "../assets/icons/eye.svg";
 import reload_svg from "../assets/icons/reload.svg";
 
-const contentEl = document.getElementById("content") as HTMLElement;
+const opraEl = view().attr({ id: "opra" }).addInto();
+const contentEl = view().attr({ id: "content" }).addInto();
 
 const x = new URLSearchParams(location.search);
 let nowPath = "/";
@@ -92,21 +93,24 @@ let select: string[] = [];
 let shiftSelect: string[] = [];
 
 function render(directory: file[]) {
-    contentEl.innerHTML = "";
+    contentEl.clear();
 
     const s = sort(directory);
     console.log(s);
 
     // TODO 虚拟列表 虚拟阵列
     for (const i of s) {
-        const iEl = el("div", [i.isDirectory ? el("span", "📂") : el("span", "📄"), el("span", i.name)]);
-        contentEl.append(iEl);
-        iEl.setAttribute("data-path", i.name);
-        iEl.setAttribute("data-dir", i.isDirectory ? "1" : "0");
-        if (i.isHidden) iEl.classList.add("hidden");
+        const iEl = view()
+            .add([i.isDirectory ? txt("📂") : txt("📄"), txt(i.name)])
+            .addInto(contentEl)
+            .data({
+                path: i.name,
+                dir: i.isDirectory ? "1" : "0",
+            });
+        if (i.isHidden) iEl.class("hidden");
     }
 
-    contentEl.onclick = (e) => {
+    contentEl.el.onclick = (e) => {
         const eventPath = e.composedPath() as HTMLElement[];
         let targetPath = ".";
         let isDir = false;
@@ -147,12 +151,13 @@ function render(directory: file[]) {
         }
     };
 }
-function selectEl(l?: string[]) {
-    if (!l) l = select;
+function selectEl(l: string[] = select) {
     console.log(l);
-    contentEl.querySelectorAll(".selected").forEach((i) => i.classList.remove("selected"));
+    for (const i of contentEl.queryAll(".selected")) {
+        i.el.classList.remove("selected");
+    }
     for (const i of l) {
-        contentEl.querySelector(`[data-path="${i}"]`)?.classList.add("selected");
+        contentEl.query(`[data-path="${i}"]`)?.class("selected");
     }
 }
 
@@ -330,7 +335,6 @@ function switchHidden(h: boolean) {
     selectEl();
 }
 
-const opraEl = document.getElementById("opra");
 const opra = {
     dotdot: { fun: dotdot, icon: up_svg },
     reflash: { fun: reflash, icon: reload_svg },
@@ -347,22 +351,19 @@ const opra = {
 };
 
 function createOpraEl(type: keyof typeof opra) {
-    const opraEl = el("div");
-    opraEl.className = "opra";
-    opraEl.innerHTML = `<img src="${opra[type].icon}" alt="">`;
-    opraEl.setAttribute("opra-type", type);
+    const opraEl = view().class("opra");
+    opraEl.el.innerHTML = `<img src="${opra[type].icon}" alt="">`;
     if (opra[type].fun.length === 0) {
-        opraEl.onclick = () => {
+        opraEl.el.onclick = () => {
             // @ts-ignore
             opra[type].fun();
         };
     }
     if (opra[type].fun.length === 1) {
-        const checkbox = el("input", { type: "checkbox" });
-        const label = el("label", checkbox);
-        opraEl.append(label);
-        checkbox.onchange = () => {
-            opra[type].fun(checkbox.checked);
+        const checkbox = check("");
+        opraEl.add(label([checkbox]));
+        checkbox.el.onchange = () => {
+            opra[type].fun(checkbox.gv);
         };
     }
     return opraEl;
@@ -384,7 +385,7 @@ const opraList: (keyof typeof opra)[] = [
 ];
 const menuList: (keyof typeof opra)[] = ["copy", "cut", "paste", "newDir", "rename", "moveToBin", "zip", "unzip"];
 
-opraEl.append(...opraList.map((i) => createOpraEl(i)));
+opraEl.add(opraList.map((i) => createOpraEl(i)));
 
 // todo ftp
 // todo webdav

@@ -26,34 +26,34 @@ body {
     backdrop-filter: var(--blur);
 }
 
-#system_right {
+#system {
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: center;
     -webkit-app-region: no-drag;
 }
-#system_right > div {
+#system > div {
     position: relative;
     width: 16px;
     height: 16px;
 }
-#system_right > div > .icon {
+#system > div > .icon {
     width: 16px;
     height: 16px;
 }
 
-#buttoms {
+#buttons {
     display: flex;
     flex-direction: row;
     -webkit-app-region: no-drag;
 }
-#buttoms > div {
+#buttons > div {
     position: relative;
     width: 16px;
     height: 16px;
 }
-#buttoms > div > .icon {
+#buttons > div > .icon {
     width: 16px;
     height: 16px;
 }

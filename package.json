@@ -17,10 +17,10 @@
     "homepage": "https://github.com/xushengfeng/view/",
     "license": "GPL-3.0",
     "dependencies": {
+        "dkh-ui": "^0.10.0",
         "electron-as-wallpaper": "^1.0.3",
         "electron-store": "^8.1.0",
         "node-7z": "^3.0.0",
-        "redom": "^4.0.0",
         "winattr": "^3.0.0"
     },
     "devDependencies": {
@@ -29,7 +29,7 @@
         "@types/node": "^20.3.3",
         "@types/node-7z": "^2.1.8",
         "@types/winattr": "^3.0.0",
-        "electron": "^28.1.2",
+        "electron": "^31.4.0",
         "electron-builder": "^24.4.0",
         "electron-vite": "^1.0.24",
         "typescript": "^5.1.6",

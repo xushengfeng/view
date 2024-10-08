@@ -41,6 +41,14 @@ body {
     top: 0;
     filter: var(--icon-color);
     user-select: none;
+    width: 24px;
+    height: 24px;
+}
+
+*:has(> .icon) {
+    position: relative;
+    width: 24px;
+    height: 24px;
 }
 
 #tab_bar {
