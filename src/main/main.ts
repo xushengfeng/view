@@ -504,14 +504,15 @@ if (!fs.existsSync(path.join(app.getPath("userData"), "capture"))) {
 }
 
 function get_real_url(url: string) {
-    if (url.startsWith("view")) {
+    if (url.startsWith("view://")) {
         let h = url.replace(/^view:\/\//, "");
         h = h.replace(/(^\w+)/, "$1.html");
         return renderer_url(h);
-    }if (url.startsWith("file")) {
-        return get_real_url(url.replace("file://", "view:file?path="));
     }
-        return url;
+    if (url.startsWith("file://")) {
+        return renderer_url(url.replace("file://", "file.html?path="));
+    }
+    return url;
     // TODO 改变location和new URL
 }
 
@@ -533,7 +534,7 @@ async function createView(window_name: bwin_id, url: string, pid: view_id, id?: 
             preload: path.join(__dirname, "../preload", "view.js"),
         },
     };
-    if (url.startsWith("view://")) {
+    if (url.startsWith("view://") || url.startsWith("file://")) {
         op.webPreferences.nodeIntegration = true;
         op.webPreferences.contextIsolation = false;
         op.webPreferences.webSecurity = false;
@@ -614,7 +615,7 @@ async function createView(window_name: bwin_id, url: string, pid: view_id, id?: 
             (err) => {
                 if (err) return;
                 image = null;
-            }
+            },
         );
     }
     wc.on("blur", () => save_pic);
@@ -770,7 +771,7 @@ function sendViews(
     id: number,
     pid: number,
     wid: number,
-    op
+    op,
 ) {
     for (const w of winL) {
         if (w[0] !== sender) {
@@ -943,10 +944,11 @@ function showItem(i: setting["windows"]["fixed"][0]) {
         if (S.includes("px")) {
             if (a === "x") {
                 return Number.parseInt(S.replace("px", "")) + (se?.bounds?.x | 0);
-            }if (a === "y") {
+            }
+            if (a === "y") {
                 return Number.parseInt(S.replace("px", "")) + (se?.bounds?.y | 0);
             }
-                return Number.parseInt(S.replace("px", ""));
+            return Number.parseInt(S.replace("px", ""));
         }
     }
     const wi = new BrowserWindow({
