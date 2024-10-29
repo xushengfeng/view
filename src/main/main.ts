@@ -344,7 +344,7 @@ async function createWin() {
             const [w, h] = main_window.getContentSize();
             for (const i of main_window.getBrowserViews()) {
                 if (i.getBounds().width !== 0 && i !== chrome) i.setBounds(get_size(w, h));
-                if (i === chrome) set_chrome_size(window_name);
+                if (i === chrome) setChromeSize(window_name);
             }
         }, 0);
     });
@@ -363,20 +363,18 @@ async function createWin() {
             webSecurity: false,
         },
     });
-    renderer_path(chrome.webContents, "frame.html");
+    renderer_path(chrome.webContents, "frame.html", {
+        query: { id: window_name.toString(), userData: app.getPath("userData") },
+    });
     if (dev) chrome.webContents.openDevTools();
     main_window.addBrowserView(chrome);
-    winToChrome.set(window_name, { view: chrome, size: "normal" });
-    set_chrome_size(window_name);
-    chrome.webContents.on("did-finish-load", () => {
-        chrome.webContents.send("win", "id", window_name);
-        chrome.webContents.send("win", "userData", app.getPath("userData"));
-    });
+    winToChrome.set(window_name, { view: chrome, size: "full" });
+    setChromeSize(window_name);
 
     return window_name;
 }
 
-function set_chrome_size(pid: bwin_id) {
+function setChromeSize(pid: bwin_id) {
     const main_window = winL.get(pid);
     const x = winToChrome.get(pid);
     const o = { full: main_window.getContentSize()[1], normal: 24, hide: 0 };
@@ -414,15 +412,15 @@ ipcMain.on("win", (e, pid, type) => {
             break;
         case "full_chrome":
             winToChrome.get(pid).size = "full";
-            set_chrome_size(pid);
+            setChromeSize(pid);
             break;
         case "normal_chrome":
             winToChrome.get(pid).size = "normal";
-            set_chrome_size(pid);
+            setChromeSize(pid);
             break;
         case "hide_chrome":
             winToChrome.get(pid).size = "hide";
-            set_chrome_size(pid);
+            setChromeSize(pid);
             break;
     }
 });

@@ -20,14 +20,12 @@ function iconEl(name: string) {
     return button(image(new URL(`../assets/icons/${name}.svg`, import.meta.url).href, "icon").class("icon"));
 }
 
-/** browserwindow id */
-let pid = Number.NaN;
+const pid = Number(new URLSearchParams(location.search).get("pid"));
 
-let chrome_size: "normal" | "hide" | "full" = "normal";
+let chrome_size: "normal" | "hide" | "full" = "full";
 const chrome_size_fixed = false;
 
-/** 用户目录 */
-let userDataPath = "";
+const userDataPath = new URLSearchParams(location.search).get("userData");
 
 let now_url = "about:blank";
 
@@ -557,12 +555,6 @@ ipcRenderer.on("win", (_e, a, arg) => {
         case "unmax":
             w_max.clear().add(icon("maximize"));
             break;
-        case "id":
-            pid = arg;
-            break;
-        case "userData":
-            userDataPath = arg;
-            break;
         case "menu":
             console.log(arg);
             menu(arg);
@@ -638,3 +630,5 @@ ipcRenderer.on("site_about", (_e, p, url) => {
 
     render_site_permission_requ();
 });
+
+renderTree();
