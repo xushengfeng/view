@@ -250,10 +250,10 @@ menu_el.el.addEventListener("toggle", (e) => {
 
 menu_el.on("click", hide_menu);
 
-const site_about_el = view().attr({ popover: "auto", id: "site_about" }).addInto();
-const permission_el = view().addInto(site_about_el).attr({ id: "permission" });
+const siteAboutEl = view().attr({ popover: "auto", id: "site_about" }).addInto();
+const permissionEl = view().addInto(siteAboutEl).attr({ id: "permission" });
 
-site_about_el.el.addEventListener("toggle", (e) => {
+siteAboutEl.el.addEventListener("toggle", (e) => {
     // @ts-ignore
     if (e.newState === "closed") {
         set_chrome_size("hide");
@@ -506,12 +506,11 @@ function menu(params: Electron.ContextMenuParams) {
 }
 
 function hide_menu() {
-    // @ts-ignore
-    menu_el.hidePopover();
+    menu_el.el.hidePopover();
 }
 
 function render_site_permission_requ() {
-    permission_el.clear();
+    permissionEl.clear();
     const url = now_url;
     const l = site_p_list.get(url) || [];
     const t = view();
@@ -542,7 +541,7 @@ function render_site_permission_requ() {
         x.add([t, al, rj]);
         lel.add(x);
     }
-    permission_el.add([t, lel]);
+    permissionEl.add([t, lel]);
 }
 
 ipcRenderer.on("win", (_e, a, arg) => {
@@ -626,8 +625,7 @@ ipcRenderer.on("site_about", (_e, p, url) => {
 
     set_chrome_size("full");
 
-    // @ts-ignore
-    site_about_el.showPopover();
+    siteAboutEl.el.showPopover();
 
     const l = site_p_list.get(url) || [];
     l.push(p);
