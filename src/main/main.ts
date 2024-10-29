@@ -314,13 +314,16 @@ async function createWin() {
         },
         frame: false,
         show: true,
+        width: store.get("appearance.size.normal.w") || 800,
+        height: store.get("appearance.size.normal.h") || 600,
+        maximizable: store.get("appearance.size.normal.m") || false,
     }) as BrowserWindow & { html: string };
     winL.set(window_name, main_window);
 
     winToViewl.set(window_name, []);
 
     main_window.on("close", () => {
-        store.set("appearance.size", {
+        store.set("appearance.size.normal", {
             w: main_window.getNormalBounds().width,
             h: main_window.getNormalBounds().height,
             m: main_window.isMaximized(),
