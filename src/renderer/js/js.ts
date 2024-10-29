@@ -173,11 +173,15 @@ class Card extends HTMLElement {
     connectedCallback() {
         const bar = view();
         const title = view();
-        const img = image(this._image, "preview");
+        const img = image(this._image, "preview")
+            .style({ maxWidth: "260px", maxHeight: "260px" })
+            .on("error", () => {
+                img.remove();
+            });
 
         this.setAttribute("data-id", this.view_id.toString());
 
-        title.add(this._title);
+        title.add(this._title ?? "无标题");
 
         img.on("click", () => {
             // 切换到活跃标签页，若已关闭，超时建立新card，不超时则重启
@@ -195,7 +199,9 @@ class Card extends HTMLElement {
             set_chrome_size("hide");
         });
 
-        this.append(bar.el, title.el, img.el);
+        this.append(
+            view().add([bar, title, img]).style({ padding: "8px", borderRadius: "8px", boxShadow: "var(--shadow)" }).el,
+        );
 
         this.childrenEl = view();
         this.append(this.childrenEl.el);
