@@ -573,9 +573,8 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
                 .resize({
                     height: Math.floor(image.getSize().height / 2),
                     width: Math.floor(image.getSize().width / 2),
-                    quality: "good",
                 })
-                .toJPEG(7),
+                .toJPEG(9),
             (err) => {
                 if (err) return;
                 image = null;
