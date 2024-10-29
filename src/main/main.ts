@@ -20,6 +20,8 @@ import * as fs from "node:fs";
 import { t, lan, getLans, matchFitLan } from "../../lib/translate/translate";
 import url from "node:url";
 import type { setting, DownloadItem } from "../types";
+const Keyv = require("keyv").default as typeof import("keyv").default;
+const KeyvSqlite = require("@keyv/sqlite").default as typeof import("@keyv/sqlite").default;
 
 const store = new Store();
 
@@ -431,10 +433,33 @@ type tree = {
     };
 };
 
-// @ts-ignore
-const tree_text_store = new Store({ name: "text" });
-// @ts-ignore
-const tree_store = new Store({ name: "tree" });
+const keyvSqlite = new KeyvSqlite(`sqlite://${app.getPath("userData")}/text.sqlite`);
+const treeTextKeyv = new Keyv({ store: keyvSqlite });
+const keyvSqlite1 = new KeyvSqlite(`sqlite://${app.getPath("userData")}/tree.sqlite`);
+const treeKeyv = new Keyv({ store: keyvSqlite1 });
+
+const tree_text_store = {
+    set: (id: view_id, value: string) => {
+        // todo: local storage
+        // todo yjs sync
+        return treeTextKeyv.set(String(id), value);
+    },
+    get: (id: view_id) => {
+        return treeTextKeyv.get(String(id));
+    },
+};
+const treeStore = {
+    set: async (id: view_id, key: "url" | "title" | "logo" | "next", value) => {
+        // todo: local storage
+        // todo yjs sync
+        const data = (await treeKeyv.get(String(id))) || {};
+        data[key] = value;
+        return treeKeyv.set(String(id), data);
+    },
+    get: (id: view_id) => {
+        return treeKeyv.get(String(id)) as Promise<tree[0]>;
+    },
+};
 
 if (!fs.existsSync(path.join(app.getPath("userData"), "capture"))) {
     fs.mkdirSync(path.join(app.getPath("userData"), "capture"));
@@ -464,7 +489,7 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
     }
     const view_id = id ?? (new Date().getTime() as view_id);
 
-    tree_store.set(String(view_id), { logo: "", url: url, title: "" });
+    treeStore.set(view_id, "url", url);
 
     const op: Electron.BrowserViewConstructorOptions = {
         webPreferences: {
@@ -505,13 +530,13 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
     });
     wc.on("page-title-updated", (_event, title) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "title", title);
-        tree_store.set(`${view_id}.title`, title);
+        treeStore.set(view_id, "title", title);
 
         sendViews(window_name, "update", view_id, null, null, { title });
     });
     wc.on("page-favicon-updated", (_event, favlogo) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "icon", favlogo);
-        tree_store.set(`${view_id}.logo`, favlogo[0]);
+        treeStore.set(view_id, "logo", favlogo[0]);
         sendViews(window_name, "update", view_id, null, null, { icon: favlogo });
     });
     wc.on("will-navigate", (event) => {
@@ -524,7 +549,7 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
     });
     wc.on("did-navigate-in-page", (_event, url, isMainFrame) => {
         if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "url", url);
-        if (isMainFrame) tree_store.set(`${view_id}.url`, url);
+        if (isMainFrame) treeStore.set(view_id, "url", url);
         sendViews(window_name, "update", view_id, null, null, { url: url });
     });
     wc.on("did-start-loading", () => {
@@ -561,7 +586,7 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
     wc.on("did-finish-load", async () => {
         save_pic();
 
-        tree_text_store.set(String(view_id), await wc.executeJavaScript("document.body.innerText"));
+        tree_text_store.set(view_id, await wc.executeJavaScript("document.body.innerText"));
 
         if (url.startsWith("view://download")) {
             if (aria2_port) {
@@ -630,21 +655,23 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
 
     if (id) return id;
 
-    // @ts-ignore
-    const l = (tree_store.get(`${pid}.next`) as tree[0]["next"]) || [];
+    const l = (await treeStore.get(pid))?.next || [];
     l.push(view_id);
-    tree_store.set(`${pid}.next`, l);
+    treeStore.set(pid, "next", l);
     sendViews(window_name, "add", view_id, pid, null, null);
 
     return view_id;
 }
 
-ipcMain.on("tab_view", (e, id, arg, arg2) => {
+ipcMain.on("tab_view", async (e, id, arg, arg2) => {
     console.log(arg);
 
     const main_window = BrowserWindow.fromWebContents(e.sender);
     const search_window = viewL.get(id);
     switch (arg) {
+        case "get":
+            e.returnValue = await treeStore.get(arg2 as view_id);
+            break;
         case "close":
             search_window.webContents.close();
             for (const x of winL) {
@@ -691,8 +718,7 @@ ipcMain.on("tab_view", (e, id, arg, arg2) => {
                 const wid = x[0];
                 const w = x[1];
                 if (w === main_window) {
-                    // @ts-ignore
-                    const url = (tree_store.get(String(arg2)) as tree[0]).url;
+                    const url = (await treeStore.get(arg2 as view_id)).url;
                     createView(wid, url, null, arg2 as view_id);
                     break;
                 }

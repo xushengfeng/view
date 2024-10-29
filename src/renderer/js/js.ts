@@ -81,7 +81,7 @@ const buttons = view().attr({ id: "buttons" });
 const url_el = ele("span").attr({ id: "url" });
 
 const b_reload = iconEl("reload").on("click", () => {
-    ipcRenderer.send("tab_view", topestView, "reload");
+    treeX.reload(topestView);
     set_chrome_size("hide");
 });
 
@@ -256,7 +256,7 @@ function r_search_l() {
         const text = view().add(i.text);
         el.add([icon_el, text]);
         el.on("pointerdown", (_e) => {
-            ipcRenderer.send("tab_view", null, "add", i.url);
+            treeX.add(i.url);
             set_chrome_size("normal");
         });
         search_list_el.add(el);
@@ -264,6 +264,33 @@ function r_search_l() {
 }
 
 const tree_el = view().attr({ id: "tree" }).addInto();
+
+const treeX = {
+    get: (id: number) => {
+        const view = ipcRenderer.sendSync("tab_view", null, "get", id);
+        console.log(id, JSON.stringify(view));
+
+        return view as tree[0];
+    },
+    reload: (id: number) => {
+        ipcRenderer.send("tab_view", id, "reload");
+    },
+    add: (url: string) => {
+        ipcRenderer.send("tab_view", null, "add", url);
+    },
+    switch: (id: number) => {
+        ipcRenderer.send("tab_view", null, "switch", id);
+    },
+    restart: (id: number) => {
+        ipcRenderer.send("tab_view", null, "restart", id);
+    },
+    download: (url: string) => {
+        ipcRenderer.send("tab_view", null, "download", url);
+    },
+    inspect: (id: number, x: number, y: number) => {
+        ipcRenderer.send("tab_view", id, "inspect", { x, y });
+    },
+};
 
 type tree = {
     [id: number]: {
@@ -273,17 +300,6 @@ type tree = {
         next?: number[];
     };
 };
-
-// @ts-ignore
-const treeStore = new Store({ name: "tree" });
-const tree = (treeStore.store || {}) as tree;
-
-function getView(id: number) {
-    const view = treeStore.get(id.toString());
-    console.log(id, JSON.stringify(view));
-
-    return view as tree[0];
-}
 
 class Card extends HTMLElement {
     view_id: number;
@@ -314,14 +330,14 @@ class Card extends HTMLElement {
         img.on("click", () => {
             // 切换到活跃标签页，若已关闭，超时建立新card，不超时则重启
             if (activeViews.includes(this.view_id)) {
-                ipcRenderer.send("tab_view", null, "switch", this.view_id);
+                treeX.switch(this.view_id);
                 topestView = this.view_id;
             } else {
                 const t = 1000 * 60 * 60 * 12;
                 if (new Date().getTime() - this.view_id > t) {
-                    ipcRenderer.send("tab_view", null, "add", this._url);
+                    treeX.add(this._url);
                 } else {
-                    ipcRenderer.send("tab_view", null, "restart", this.view_id);
+                    treeX.restart(this.view_id);
                 }
             }
             set_chrome_size("hide");
@@ -365,7 +381,7 @@ class Card extends HTMLElement {
 
 customElements.define("view-card", Card);
 function create_card(id: number): Card {
-    const view = getView(id);
+    const view = treeX.get(id);
     const title = view.title;
     const next = view.next;
     const image = `file://${userDataPath}/capture/${id}.jpg`;
@@ -375,8 +391,7 @@ function create_card(id: number): Card {
 }
 
 function render_tree() {
-    console.log(tree);
-    const root = getView(0).next.toReversed();
+    const root = treeX.get(0).next.toReversed();
     // TODO 虚拟列表
     for (let i = 0; i < Math.min(5, root.length); i++) {
         const x = create_card(root[i]);
@@ -458,7 +473,7 @@ function menu(params: Electron.ContextMenuParams) {
         const search = view()
             .add(`搜索“${params.selectionText.trim()}”`)
             .on("click", () => {
-                ipcRenderer.send("tab_view", null, "add", to_search_url(params.selectionText.trim()));
+                treeX.add(to_search_url(params.selectionText.trim()));
             });
 
         menu_el.add([copy, search]);
@@ -468,7 +483,7 @@ function menu(params: Electron.ContextMenuParams) {
         const open = view()
             .add("打开链接")
             .on("click", () => {
-                ipcRenderer.send("tab_view", null, "add", params.linkURL);
+                treeX.add(params.linkURL);
             });
 
         const copy = view()
@@ -484,7 +499,7 @@ function menu(params: Electron.ContextMenuParams) {
         const open = view()
             .add("打开媒体")
             .on("click", () => {
-                ipcRenderer.send("tab_view", null, "add", params.srcURL);
+                treeX.add(params.srcURL);
             });
 
         const copy = view()
@@ -496,7 +511,7 @@ function menu(params: Electron.ContextMenuParams) {
         const download = view()
             .add("下载媒体")
             .on("click", () => {
-                ipcRenderer.send("tab_view", null, "download", params.srcURL);
+                treeX.download(params.srcURL);
             });
 
         menu_el.add([open, copy, download]);
@@ -505,7 +520,7 @@ function menu(params: Electron.ContextMenuParams) {
     const inspect = view()
         .add("检查")
         .on("click", () => {
-            ipcRenderer.send("tab_view", topestView, "inspect", { x: params.x, y: params.y });
+            treeX.inspect(topestView, params.x, params.y);
         });
 
     menu_el.add(inspect);
