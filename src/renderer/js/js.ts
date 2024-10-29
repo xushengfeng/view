@@ -386,6 +386,7 @@ function create_card(id: number): Card {
 }
 
 function render_tree() {
+    treeEl.clear();
     const root = treeX.get(0).next.toReversed();
     // TODO 虚拟列表
     for (let i = 0; i < Math.min(5, root.length); i++) {
@@ -599,9 +600,6 @@ ipcRenderer.on("url", (_e, view, type, arg) => {
 });
 
 init_search();
-
-// @ts-ignore
-window.r = render_tree;
 
 // 同步树状态，一般由其他窗口发出
 ipcRenderer.on("view", (_e, type: "add" | "close" | "update" | "move", id: number, pid: number, wid: number, op) => {
