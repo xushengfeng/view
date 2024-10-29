@@ -93,11 +93,11 @@ const barStyle = addClass(
 
 const w_mini = iconEl("minimize").on("click", () => {
     ipcRenderer.send("win", pid, "mini");
-    set_chrome_size("hide");
+    setChromeSize("hide");
 });
 const w_max = iconEl("maximize").on("click", () => {
     ipcRenderer.send("win", pid, "max");
-    set_chrome_size("hide");
+    setChromeSize("hide");
 });
 const w_close = iconEl("close").on("click", () => {
     ipcRenderer.send("win", pid, "close");
@@ -112,12 +112,12 @@ const url_el = ele("span").attr({ id: "url" });
 
 const b_reload = iconEl("reload").on("click", () => {
     treeX.reload(topestView);
-    set_chrome_size("hide");
+    setChromeSize("hide");
 });
 
 const show_tree = iconEl("reload").on("click", () => {
-    set_chrome_size("full");
-    render_tree();
+    setChromeSize("full");
+    renderTree();
 });
 
 buttons.add([b_reload, show_tree]);
@@ -135,7 +135,7 @@ url_el.on("pointerdown", (e) => {
     url_el.clear().add(url_i);
     url_i.el.setSelectionRange(0, url_i.gv.length);
     url_i.el.focus();
-    set_chrome_size("full");
+    setChromeSize("full");
     init_search();
     url_i
         .on("input", () => {
@@ -144,7 +144,7 @@ url_el.on("pointerdown", (e) => {
         })
         .on("blur", () => {
             set_url(url_i.gv);
-            set_chrome_size("hide");
+            setChromeSize("hide");
         });
 });
 
@@ -196,7 +196,7 @@ class Card extends HTMLElement {
                     treeX.restart(this.view_id);
                 }
             }
-            set_chrome_size("hide");
+            setChromeSize("hide");
         });
 
         this.append(
@@ -244,7 +244,7 @@ const menu_el = view().attr({ id: "menu", popover: "auto" }).addInto();
 menu_el.el.addEventListener("toggle", (e) => {
     // @ts-ignore
     if (e.newState === "closed") {
-        set_chrome_size("hide");
+        setChromeSize("hide");
     }
 });
 
@@ -256,7 +256,7 @@ const permissionEl = view().addInto(siteAboutEl).attr({ id: "permission" });
 siteAboutEl.el.addEventListener("toggle", (e) => {
     // @ts-ignore
     if (e.newState === "closed") {
-        set_chrome_size("hide");
+        setChromeSize("hide");
         if (site_p_list.get(now_url).length !== 0) {
             for (const i of site_p_list.get(now_url)) {
                 ipcRenderer.send("site_about", now_url, i, false);
@@ -267,16 +267,20 @@ siteAboutEl.el.addEventListener("toggle", (e) => {
 
 // --- fun
 
-function set_chrome_size(type: "normal" | "hide" | "full") {
-    if (type === "hide" && chrome_size_fixed) {
-        chrome_size = "normal";
-    } else {
-        chrome_size = type;
-    }
-    ipcRenderer.send("win", pid, `${chrome_size}_chrome`);
-    if (chrome_size === "normal") {
+function setChromeSize(type: "normal" | "hide" | "full") {
+    // todo menu等禁止hide
+
+    let t = type;
+    if (type === "hide" && chrome_size_fixed) t = "normal";
+    ipcRenderer.send("win", pid, `${t}_chrome`);
+
+    if (type === "normal") {
         search_list_el.clear();
     }
+    if (type === "hide") {
+        treeEl.style({ display: "none" });
+    }
+    chrome_size = type;
 }
 
 function set_url(url: string) {
@@ -369,7 +373,7 @@ function r_search_l() {
         el.add([icon_el, text]);
         el.on("pointerdown", (_e) => {
             treeX.add(i.url);
-            set_chrome_size("normal");
+            setChromeSize("normal");
         });
         search_list_el.add(el);
     }
@@ -385,8 +389,9 @@ function create_card(id: number): Card {
     return card;
 }
 
-function render_tree() {
+function renderTree() {
     treeEl.clear();
+    treeEl.style({ display: "flex" });
     const root = treeX.get(0).next.toReversed();
     // TODO 虚拟列表
     for (let i = 0; i < Math.min(5, root.length); i++) {
@@ -429,7 +434,7 @@ function cardMove(id: number, newParent: number) {
 }
 
 function menu(params: Electron.ContextMenuParams) {
-    set_chrome_size("full");
+    setChromeSize("full");
 
     menu_el.el.showPopover();
 
@@ -522,7 +527,7 @@ function render_site_permission_requ() {
             .add("allow")
             .on("click", () => {
                 ipcRenderer.send("site_about", url, i, true);
-                set_chrome_size("hide");
+                setChromeSize("hide");
                 site_p_list.set(
                     url,
                     l.filter((x) => x !== i),
@@ -532,7 +537,7 @@ function render_site_permission_requ() {
             .add("reject")
             .on("click", () => {
                 ipcRenderer.send("site_about", url, i, false);
-                set_chrome_size("hide");
+                setChromeSize("hide");
                 site_p_list.set(
                     url,
                     l.filter((x) => x !== i),
@@ -568,9 +573,9 @@ ipcRenderer.on("win", (_e, a, arg) => {
             break;
         case "chrome_toggle":
             if (chrome_size === "hide") {
-                set_chrome_size("normal");
+                setChromeSize("normal");
             } else if (chrome_size === "normal") {
-                set_chrome_size("hide");
+                setChromeSize("hide");
             }
             break;
     }
@@ -582,7 +587,7 @@ ipcRenderer.on("url", (_e, view, type, arg) => {
             topestView = view;
             activeViews.push(view);
             myViews.push(view);
-            if (chrome_size !== "full") set_chrome_size("normal");
+            if (chrome_size !== "full") setChromeSize("normal");
             break;
         case "url":
             if (view === topestView) {
@@ -592,7 +597,7 @@ ipcRenderer.on("url", (_e, view, type, arg) => {
         case "load":
             if (arg) {
             } else {
-                if (chrome_size !== "full" && !chrome_size_fixed) set_chrome_size("hide");
+                setChromeSize("hide");
             }
             break;
     }
@@ -623,7 +628,7 @@ ipcRenderer.on("view", (_e, type: "add" | "close" | "update" | "move", id: numbe
 ipcRenderer.on("site_about", (_e, p, url) => {
     console.log(url);
 
-    set_chrome_size("full");
+    setChromeSize("full");
 
     siteAboutEl.el.showPopover();
 
