@@ -41,7 +41,7 @@ let default_engine = "";
 let search_url = "";
 let suggestions_url = "";
 
-let search_list: { url: string; text: string; icon: string }[] = [];
+type searchListT = { url: string; text: string; icon: string }[];
 
 const treeX = {
     get: (id: number) => {
@@ -139,7 +139,7 @@ view()
     .addInto()
     .attr({ id: "bar" });
 
-const search_list_el = view().attr({ id: "search_list" }).addInto();
+const searchListEl = view().attr({ id: "search_list" }).addInto();
 url_el.on("pointerdown", (e) => {
     if ((e.target as HTMLElement).tagName === "INPUT") return;
     e.preventDefault();
@@ -152,7 +152,6 @@ url_el.on("pointerdown", (e) => {
     url_i
         .on("input", () => {
             search(url_i.gv);
-            r_search_l();
         })
         .on("blur", () => {
             set_url(url_i.gv);
@@ -304,7 +303,7 @@ function setChromeSize(type: "normal" | "hide" | "full") {
     ipcRenderer.send("win", pid, `${t}_chrome`);
 
     if (type === "normal") {
-        search_list_el.clear();
+        searchListEl.clear();
     }
     if (type === "hide") {
         treeEl.style({ display: "none" });
@@ -378,34 +377,32 @@ function to_search_url(str: string) {
 }
 
 function search(str: string) {
-    search_list = [];
-    search_list.push({ url: to_more_url(to_url(str)), text: `访问 ${to_url(str)}`, icon: browser_svg });
-    search_list.push({ url: to_search_url(str), text: `搜索 ${str}`, icon: search_svg });
+    searchListEl.clear();
+
+    addSearchItem({ url: to_more_url(to_url(str)), text: `访问 ${to_url(str)}`, icon: browser_svg });
+    addSearchItem({ url: to_search_url(str), text: `搜索 ${str}`, icon: search_svg });
+
     fetch(suggestions_url.replace("%s", encodeURIComponent(str)))
         .then((j) => j.json())
         .then((j) => {
             if (j[1]) {
                 for (const s of j[1]) {
-                    search_list.push({ url: to_search_url(s), text: s, icon: search_svg });
+                    addSearchItem({ url: to_search_url(s), text: s, icon: search_svg });
                 }
             }
-            r_search_l();
         });
 }
 
-function r_search_l() {
-    search_list_el.clear();
-    for (const i of search_list) {
-        const el = view().data({ url: i.url });
-        const icon_el = view().add(image(i.icon, "icon").class("icon"));
-        const text = view().add(i.text);
-        el.add([icon_el, text]);
-        el.on("pointerdown", (_e) => {
-            treeX.add(i.url);
-            setChromeSize("normal");
-        });
-        search_list_el.add(el);
-    }
+function addSearchItem(i: searchListT[0]) {
+    const el = view().data({ url: i.url });
+    const icon_el = view().add(image(i.icon, "icon").class("icon"));
+    const text = view().add(i.text);
+    el.add([icon_el, text]);
+    el.on("pointerdown", (_e) => {
+        treeX.add(i.url);
+        setChromeSize("normal");
+    });
+    searchListEl.add(el);
 }
 
 function create_card(id: number): Card {
