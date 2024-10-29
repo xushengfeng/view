@@ -663,14 +663,14 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
     return view_id;
 }
 
-ipcMain.on("tab_view", async (e, id, arg, arg2) => {
-    console.log(arg);
+ipcMain.on("tab_view", async (e, type, id: view_id, arg2) => {
+    console.log(type);
 
     const main_window = BrowserWindow.fromWebContents(e.sender);
     const search_window = viewL.get(id);
-    switch (arg) {
+    switch (type) {
         case "get":
-            e.returnValue = await treeStore.get(arg2 as view_id);
+            e.returnValue = await treeStore.get(id);
             break;
         case "close":
             search_window.webContents.close();
@@ -701,13 +701,13 @@ ipcMain.on("tab_view", async (e, id, arg, arg2) => {
             break;
         case "switch":
             // 获取BrowserWindow并提升bview
-            winToViewl.forEach((bvs, id) => {
+            winToViewl.forEach((bvs, bid) => {
                 for (const i of bvs) {
-                    if (i === arg2) {
-                        winL.get(id).setTopBrowserView(viewL.get(i));
-                        winL.get(id).setTopBrowserView(winToChrome.get(id).view);
-                        winL.get(id).moveTop();
-                        winL.get(id).focus();
+                    if (i === id) {
+                        winL.get(bid).setTopBrowserView(viewL.get(i));
+                        winL.get(bid).setTopBrowserView(winToChrome.get(bid).view);
+                        winL.get(bid).moveTop();
+                        winL.get(bid).focus();
                         return;
                     }
                 }
@@ -718,8 +718,8 @@ ipcMain.on("tab_view", async (e, id, arg, arg2) => {
                 const wid = x[0];
                 const w = x[1];
                 if (w === main_window) {
-                    const url = (await treeStore.get(arg2 as view_id)).url;
-                    createView(wid, url, null, arg2 as view_id);
+                    const url = (await treeStore.get(id)).url;
+                    createView(wid, url, null, id);
                     break;
                 }
             }

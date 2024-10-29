@@ -43,31 +43,31 @@ let search_list: { url: string; text: string; icon: string }[] = [];
 
 const treeX = {
     get: (id: number) => {
-        const view = ipcRenderer.sendSync("tab_view", null, "get", id);
+        const view = ipcRenderer.sendSync("tab_view", "get", id);
         console.log(id, JSON.stringify(view));
 
         return view as tree[0];
     },
     reload: (id: number) => {
-        ipcRenderer.send("tab_view", id, "reload");
+        ipcRenderer.send("tab_view", "reload", id);
     },
     add: (url: string) => {
-        ipcRenderer.send("tab_view", null, "add", url);
+        ipcRenderer.send("tab_view", "add", null, url);
     },
     close: (id: number) => {
-        ipcRenderer.send("tab_view", null, "close", id);
+        ipcRenderer.send("tab_view", "close", id);
     },
     switch: (id: number) => {
-        ipcRenderer.send("tab_view", null, "switch", id);
+        ipcRenderer.send("tab_view", "switch", id);
     },
     restart: (id: number) => {
-        ipcRenderer.send("tab_view", null, "restart", id);
+        ipcRenderer.send("tab_view", "restart", id);
     },
     download: (url: string) => {
-        ipcRenderer.send("tab_view", null, "download", url);
+        ipcRenderer.send("tab_view", "download", null, url);
     },
     inspect: (id: number, x: number, y: number) => {
-        ipcRenderer.send("tab_view", id, "inspect", { x, y });
+        ipcRenderer.send("tab_view", "inspect", id, { x, y });
     },
 };
 
