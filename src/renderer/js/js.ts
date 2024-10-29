@@ -167,7 +167,9 @@ const treeEl = view("x")
 
 class Card extends HTMLElement {
     view_id: number;
-    _title: string;
+    _title = view().bindSet((v: string, el) => {
+        el.innerText = v ?? "无标题";
+    });
     _next: number[];
     _image: string;
     _icon: string;
@@ -182,7 +184,7 @@ class Card extends HTMLElement {
     constructor(id: number, title: string, next: number[], image: string) {
         super();
         this.view_id = id;
-        this._title = title;
+        this._title.sv(title);
         this._next = next;
         this._image = image;
         this._active = activeViews.includes(this.view_id);
@@ -193,7 +195,6 @@ class Card extends HTMLElement {
 
         this.active(this._active);
 
-        const title = view();
         const img = image(this._image, "preview")
             .style({ maxWidth: "260px", maxHeight: "260px" })
             .on("error", () => {
@@ -201,8 +202,6 @@ class Card extends HTMLElement {
             });
 
         this.setAttribute("data-id", this.view_id.toString());
-
-        title.add(this._title ?? "无标题");
 
         img.on("click", () => {
             // 切换到活跃标签页，若已关闭，超时建立新card，不超时则重启
@@ -221,7 +220,9 @@ class Card extends HTMLElement {
         });
 
         this.append(
-            view().add([bar, title, img]).style({ padding: "8px", borderRadius: "8px", boxShadow: "var(--shadow)" }).el,
+            view()
+                .add([bar, this._title, img])
+                .style({ padding: "8px", borderRadius: "8px", boxShadow: "var(--shadow)" }).el,
         );
 
         this.childrenEl = view();
@@ -237,9 +238,6 @@ class Card extends HTMLElement {
 
     set viewId(id: number) {
         this.view_id = id;
-    }
-    set title(t: string) {
-        this._title = t;
     }
     set next(n: number[]) {
         this._next = n;
@@ -436,7 +434,7 @@ function renderTree() {
 }
 
 function getCardById(id: number) {
-    return document.querySelector(`div[data-id="${id}"]`) as Card;
+    return document.querySelector(`[data-id="${id}"]`) as Card;
 }
 
 function cardAdd(id: number, parent: number) {
@@ -458,13 +456,13 @@ function cardClose(id: number) {
 }
 
 function cardUpdata(id: number, op: cardData) {
-    const pCardEl = getCardById(id);
-    if (pCardEl) {
-        if (op.title) pCardEl.title = op.title;
-        if (op.icon) pCardEl.icon = op.icon;
-        if (op.cover) pCardEl.image = op.cover;
+    const cardEl = getCardById(id);
+    if (cardEl) {
+        if (op.title) cardEl._title.sv(op.title);
+        if (op.icon) cardEl.icon = op.icon;
+        if (op.cover) cardEl.image = op.cover;
         if (op.url) {
-            pCardEl.url = op.url;
+            cardEl.url = op.url;
             if (id === topestView) {
                 set_url(op.url);
             }
