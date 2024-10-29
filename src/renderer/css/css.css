@@ -117,10 +117,6 @@ body {
     height: 16px;
 }
 
-#tree {
-    position: relative;
-}
-
 #menu {
     position: fixed;
     background-color: var(--bg);

@@ -18,7 +18,7 @@
     "license": "GPL-3.0",
     "dependencies": {
         "@keyv/sqlite": "^4.0.1",
-        "dkh-ui": "^0.10.0",
+        "dkh-ui": "^0.11.0",
         "electron-as-wallpaper": "^1.0.3",
         "electron-store": "^8.1.0",
         "keyv": "^5.1.2",

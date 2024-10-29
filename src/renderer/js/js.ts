@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 const { ipcRenderer, clipboard } = require("electron") as typeof import("electron");
-import { button, ele, type ElType, image, input, pureStyle, txt, view } from "dkh-ui";
+import { addClass, button, ele, type ElType, image, input, pureStyle, txt, view } from "dkh-ui";
 import store from "../../../lib/store/renderStore";
 
 const setting = store;
@@ -28,6 +28,14 @@ const chrome_size_fixed = false;
 
 /** 用户目录 */
 let userDataPath = "";
+
+const barStyle = addClass(
+    {
+        backgroundColor: "var(--bg)",
+        backdropFilter: "var(--blur)",
+    },
+    {},
+);
 
 const w_mini = iconEl("minimize").on("click", () => {
     ipcRenderer.send("win", pid, "mini");
@@ -263,7 +271,10 @@ function r_search_l() {
     }
 }
 
-const tree_el = view().attr({ id: "tree" }).addInto();
+const treeEl = view("x")
+    .class(barStyle)
+    .style({ height: "calc(100vh - 24px)", width: "100vw", overflow: "scroll" })
+    .addInto();
 
 const treeX = {
     get: (id: number) => {
@@ -395,7 +406,7 @@ function render_tree() {
     // TODO 虚拟列表
     for (let i = 0; i < Math.min(5, root.length); i++) {
         const x = create_card(root[i]);
-        tree_el.add(x);
+        treeEl.add(x);
     }
 }
 
