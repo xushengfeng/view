@@ -29,8 +29,8 @@ const userDataPath = new URLSearchParams(location.search).get("userData");
 
 let now_url = "about:blank";
 
-let activeViews = [];
-const myViews = [];
+let activeViews: number[] = [];
+const myViews: number[] = [];
 let topestView = Number.NaN;
 
 const download_url = "view://download";
@@ -53,6 +53,9 @@ const treeX = {
     },
     add: (url: string) => {
         ipcRenderer.send("tab_view", null, "add", url);
+    },
+    close: (id: number) => {
+        ipcRenderer.send("tab_view", null, "close", id);
     },
     switch: (id: number) => {
         ipcRenderer.send("tab_view", null, "switch", id);
@@ -87,6 +90,15 @@ const barStyle = addClass(
         backdropFilter: "var(--blur)",
     },
     {},
+);
+
+const inactiveStyle = addClass(
+    {},
+    {
+        ":nth-child(1)": {
+            opacity: 0.5,
+        },
+    },
 );
 
 const w_mini = iconEl("minimize").on("click", () => {
@@ -159,6 +171,11 @@ class Card extends HTMLElement {
     _icon: string;
     _url: string;
     childrenEl: ElType<HTMLElement>;
+    _active = false;
+    closeEl = iconEl("close").on("click", () => {
+        treeX.close(this.view_id);
+        this.active(false);
+    });
 
     constructor(id: number, title: string, next: number[], image: string) {
         super();
@@ -166,10 +183,14 @@ class Card extends HTMLElement {
         this._title = title;
         this._next = next;
         this._image = image;
+        this._active = activeViews.includes(this.view_id);
     }
 
     connectedCallback() {
-        const bar = view();
+        const bar = view().add([this.closeEl]);
+
+        this.active(this._active);
+
         const title = view();
         const img = image(this._image, "preview")
             .style({ maxWidth: "260px", maxHeight: "260px" })
@@ -232,6 +253,16 @@ class Card extends HTMLElement {
     }
     set url(u: string) {
         this._url = u;
+    }
+    active(a: boolean) {
+        this._active = a;
+        if (a) {
+            this.classList.remove(inactiveStyle);
+            this.closeEl.style({ display: "block" });
+        } else {
+            this.classList.add(inactiveStyle);
+            this.closeEl.style({ display: "none" });
+        }
     }
 }
 
@@ -390,10 +421,14 @@ function create_card(id: number): Card {
 function renderTree() {
     treeEl.clear();
     treeEl.style({ display: "flex" });
-    const root = treeX.get(0).next.toReversed();
+    const i = 0;
+    const root = treeX
+        .get(0)
+        .next.toReversed()
+        .slice(i, i + 5);
     // TODO 虚拟列表
-    for (let i = 0; i < Math.min(5, root.length); i++) {
-        const x = create_card(root[i]);
+    for (const i of root.toReversed()) {
+        const x = create_card(i);
         treeEl.add(x);
     }
 }
@@ -413,6 +448,8 @@ function cardAdd(id: number, parent: number) {
 
 function cardClose(id: number) {
     activeViews = activeViews.filter((x) => x !== id);
+    const cardEl = getCardById(id);
+    cardEl.active(false);
 }
 
 function cardUpdata(id: number, op: { url?: string; title?: string; icon?: string; cover?: string }) {
