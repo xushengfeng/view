@@ -20,7 +20,7 @@ function iconEl(name: string) {
     return button(image(new URL(`../assets/icons/${name}.svg`, import.meta.url).href, "icon").class("icon"));
 }
 
-const pid = Number(new URLSearchParams(location.search).get("pid"));
+const pid = Number(new URLSearchParams(location.search).get("id"));
 
 let chrome_size: "normal" | "hide" | "full" = "full";
 const chrome_size_fixed = false;
