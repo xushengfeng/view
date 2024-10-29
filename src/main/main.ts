@@ -19,7 +19,7 @@ import { spawn, exec } from "node:child_process";
 import * as fs from "node:fs";
 import { t, lan, getLans, matchFitLan } from "../../lib/translate/translate";
 import url from "node:url";
-import type { setting, DownloadItem } from "../types";
+import type { setting, DownloadItem, cardData } from "../types";
 const Keyv = require("keyv").default as typeof import("keyv").default;
 const KeyvSqlite = require("@keyv/sqlite").default as typeof import("@keyv/sqlite").default;
 
@@ -524,40 +524,36 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
     });
     if (dev) wc.openDevTools();
     if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "new", url);
-    sendViews(window_name, "update", view_id, null, null, { url: url });
+    sendViews("update", view_id, null, null, { url: url });
     wc.on("destroyed", () => {
         main_window.removeBrowserView(search_view);
         viewL.delete(view_id);
     });
     wc.on("page-title-updated", (_event, title) => {
-        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "title", title);
         treeStore.set(view_id, "title", title);
 
-        sendViews(window_name, "update", view_id, null, null, { title });
+        sendViews("update", view_id, null, null, { title });
     });
     wc.on("page-favicon-updated", (_event, favlogo) => {
-        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "icon", favlogo);
         treeStore.set(view_id, "logo", favlogo[0]);
-        sendViews(window_name, "update", view_id, null, null, { icon: favlogo });
+        sendViews("update", view_id, null, null, { icon: favlogo[0] });
     });
     wc.on("will-navigate", (event) => {
         createView(window_name, event.url, view_id);
         event.preventDefault();
     });
     wc.on("did-navigate", (_event, url) => {
-        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "url", url);
-        sendViews(window_name, "update", view_id, null, null, { url: url });
+        sendViews("update", view_id, null, null, { url: url });
     });
     wc.on("did-navigate-in-page", (_event, url, isMainFrame) => {
-        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "url", url);
         if (isMainFrame) treeStore.set(view_id, "url", url);
-        sendViews(window_name, "update", view_id, null, null, { url: url });
+        sendViews("update", view_id, null, null, { url: url });
     });
     wc.on("did-start-loading", () => {
-        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "load", true);
+        sendViews("update", view_id, null, null, { loading: true });
     });
     wc.on("did-stop-loading", () => {
-        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "load", false);
+        sendViews("update", view_id, null, null, { loading: false });
     });
     wc.on("did-fail-load", (_event, err_code, err_des) => {
         renderer_path(wc, "browser_bg.html", {
@@ -658,7 +654,7 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
     const l = (await treeStore.get(pid))?.next || [];
     l.push(view_id);
     treeStore.set(pid, "next", l);
-    sendViews(window_name, "add", view_id, pid, null, null);
+    sendViews("add", view_id, pid, null, null);
 
     return view_id;
 }
@@ -674,14 +670,7 @@ ipcMain.on("tab_view", async (e, type, id: view_id, arg2) => {
             break;
         case "close":
             search_window.webContents.close();
-            for (const x of winL) {
-                const wid = x[0];
-                const w = x[1];
-                if (w === main_window) {
-                    sendViews(wid, "close", id, null, null, null);
-                    break;
-                }
-            }
+            sendViews("close", id, null, null, null);
             break;
         case "stop":
             search_window.webContents.stop();
@@ -736,19 +725,10 @@ ipcMain.on("tab_view", async (e, type, id: view_id, arg2) => {
     }
 });
 
-function sendViews(
-    sender: bwin_id,
-    type: "add" | "close" | "update" | "move",
-    id: number,
-    pid: number,
-    wid: number,
-    op,
-) {
+function sendViews(type: "add" | "close" | "update" | "move", id: number, pid: number, wid: number, op: cardData) {
     for (const w of winL) {
-        if (w[0] !== sender) {
-            const chrome = winToChrome.get(w[0]).view;
-            chrome.webContents.send("view", type, id, pid, wid, op);
-        }
+        const chrome = winToChrome.get(w[0]).view;
+        chrome.webContents.send("view", type, id, pid, wid, op);
     }
 }
 

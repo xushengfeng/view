@@ -49,6 +49,14 @@ export interface setting {
     };
 }
 
+export interface cardData {
+    url?: string;
+    title?: string;
+    icon?: string;
+    cover?: string;
+    loading?: boolean;
+}
+
 export interface DownloadItem {
     id: number | string;
     url: string;

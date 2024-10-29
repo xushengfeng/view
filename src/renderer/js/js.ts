@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+import type { cardData } from "../../types";
+
 const { ipcRenderer, clipboard } = require("electron") as typeof import("electron");
 import { addClass, button, ele, type ElType, image, input, pureStyle, txt, view } from "dkh-ui";
 import store from "../../../lib/store/renderStore";
@@ -439,6 +441,9 @@ function getCardById(id: number) {
 
 function cardAdd(id: number, parent: number) {
     activeViews.push(id);
+    topestView = id;
+    myViews.push(id);
+    if (chrome_size !== "full") setChromeSize("normal");
     const pCardEl = getCardById(parent);
     if (pCardEl) {
         const x = create_card(id);
@@ -452,13 +457,21 @@ function cardClose(id: number) {
     cardEl.active(false);
 }
 
-function cardUpdata(id: number, op: { url?: string; title?: string; icon?: string; cover?: string }) {
+function cardUpdata(id: number, op: cardData) {
     const pCardEl = getCardById(id);
     if (pCardEl) {
         if (op.title) pCardEl.title = op.title;
         if (op.icon) pCardEl.icon = op.icon;
         if (op.cover) pCardEl.image = op.cover;
-        if (op.url) pCardEl.url = op.url;
+        if (op.url) {
+            pCardEl.url = op.url;
+            if (id === topestView) {
+                set_url(op.url);
+            }
+        }
+    }
+    if (op.loading === false) {
+        setChromeSize("hide");
     }
 }
 
@@ -610,32 +623,11 @@ ipcRenderer.on("win", (_e, a, arg) => {
     }
 });
 
-ipcRenderer.on("url", (_e, view, type, arg) => {
-    switch (type) {
-        case "new":
-            topestView = view;
-            activeViews.push(view);
-            myViews.push(view);
-            if (chrome_size !== "full") setChromeSize("normal");
-            break;
-        case "url":
-            if (view === topestView) {
-                set_url(arg);
-            }
-            break;
-        case "load":
-            if (arg) {
-            } else {
-                setChromeSize("hide");
-            }
-            break;
-    }
-});
-
 init_search();
 
-// 同步树状态，一般由其他窗口发出
+// 同步树状态
 ipcRenderer.on("view", (_e, type: "add" | "close" | "update" | "move", id: number, pid: number, wid: number, op) => {
+    console.log(type, id, pid, wid, op);
     switch (type) {
         case "add":
             cardAdd(id, pid);
