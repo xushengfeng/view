@@ -29,252 +29,19 @@ const chrome_size_fixed = false;
 /** 用户目录 */
 let userDataPath = "";
 
-const barStyle = addClass(
-    {
-        backgroundColor: "var(--bg)",
-        backdropFilter: "var(--blur)",
-    },
-    {},
-);
-
-const w_mini = iconEl("minimize").on("click", () => {
-    ipcRenderer.send("win", pid, "mini");
-    set_chrome_size("hide");
-});
-const w_max = iconEl("maximize").on("click", () => {
-    ipcRenderer.send("win", pid, "max");
-    set_chrome_size("hide");
-});
-const w_close = iconEl("close").on("click", () => {
-    ipcRenderer.send("win", pid, "close");
-});
-
-const system_el = view().attr({ id: "system" });
-
-system_el.add([w_mini, w_max, w_close]);
-
-ipcRenderer.on("win", (_e, a, arg) => {
-    switch (a) {
-        case "max":
-            w_max.clear().add(icon("unmaximize"));
-            break;
-        case "unmax":
-            w_max.clear().add(icon("maximize"));
-            break;
-        case "id":
-            pid = arg;
-            break;
-        case "userData":
-            userDataPath = arg;
-            break;
-        case "menu":
-            console.log(arg);
-            menu(arg);
-            break;
-        case "zoom":
-            console.log(arg);
-            // TODO show
-            break;
-        case "chrome_toggle":
-            if (chrome_size === "hide") {
-                set_chrome_size("normal");
-            } else if (chrome_size === "normal") {
-                set_chrome_size("hide");
-            }
-            break;
-    }
-});
-
-const buttons = view().attr({ id: "buttons" });
-const url_el = ele("span").attr({ id: "url" });
-
-const b_reload = iconEl("reload").on("click", () => {
-    treeX.reload(topestView);
-    set_chrome_size("hide");
-});
-
-const show_tree = iconEl("reload").on("click", () => {
-    set_chrome_size("full");
-    render_tree();
-});
-
-buttons.add([b_reload, show_tree]);
-
-view()
-    .add([buttons, view().attr({ id: "url_bar" }).add(url_el), system_el])
-    .addInto()
-    .attr({ id: "bar" });
-
-function set_chrome_size(type: "normal" | "hide" | "full") {
-    if (type === "hide" && chrome_size_fixed) {
-        chrome_size = "normal";
-    } else {
-        chrome_size = type;
-    }
-    ipcRenderer.send("win", pid, `${chrome_size}_chrome`);
-    if (chrome_size === "normal") {
-        search_list_el.clear();
-    }
-}
-
 let now_url = "about:blank";
-
-function set_url(url: string) {
-    now_url = url;
-    try {
-        let x = new URL(url);
-        if (location.href.split("/").slice(0, -1).join("/") === x.href.split("/").slice(0, -1).join("/")) {
-            x = new URL(`view://${x.pathname.split("/").at(-1).replace(".html", "")}`);
-        }
-        const hurl = x.toString();
-        let ss = 0;
-        let se = hurl.length;
-        if (hurl.indexOf(".") !== -1) {
-            ss = hurl.indexOf(".") + 1;
-        } else {
-            ss = hurl.indexOf("://") + 3;
-        }
-        for (let i = ss; i < hurl.length; i++) {
-            const element = hurl[i];
-            if (!element.match(/[a-zA-Z.]/)) {
-                se = i;
-            }
-        }
-        const l0 = hurl.slice(0, ss);
-        const h = hurl.slice(ss, se);
-        const l1 = hurl.slice(se);
-        const m = txt();
-        m.sv(h);
-        url_el.clear().add([l0, m, l1]);
-    } catch (error) {
-        const m = txt();
-        m.sv(url);
-        url_el.clear().add(m);
-    }
-}
 
 let activeViews = [];
 const myViews = [];
 let topestView = Number.NaN;
 
-ipcRenderer.on("url", (_e, view, type, arg) => {
-    switch (type) {
-        case "new":
-            topestView = view;
-            activeViews.push(view);
-            myViews.push(view);
-            if (chrome_size !== "full") set_chrome_size("normal");
-            break;
-        case "url":
-            if (view === topestView) {
-                set_url(arg);
-            }
-            break;
-        case "load":
-            if (arg) {
-            } else {
-                if (chrome_size !== "full" && !chrome_size_fixed) set_chrome_size("hide");
-            }
-            break;
-    }
-});
-
-const search_list_el = view().attr({ id: "search_list" }).addInto();
-url_el.on("pointerdown", (e) => {
-    if ((e.target as HTMLElement).tagName === "INPUT") return;
-    e.preventDefault();
-    const url_i = input().sv(url_el.el.innerText);
-    url_el.clear().add(url_i);
-    url_i.el.setSelectionRange(0, url_i.gv.length);
-    url_i.el.focus();
-    set_chrome_size("full");
-    init_search();
-    url_i
-        .on("input", () => {
-            search(url_i.gv);
-            r_search_l();
-        })
-        .on("blur", () => {
-            set_url(url_i.gv);
-            set_chrome_size("hide");
-        });
-});
-
-function to_url(str: string) {
-    if (str.match(/^:\/\//)) {
-        return `https${str}`;
-    }
-    if (str.match(/^[a-z]+:\/\//i)) {
-        return str;
-    }
-    if (str.match(/^[0-9a-fA-F]{40}$/)) {
-        return `magnet:?xt=urn:btih:${str}`;
-    }
-    return `https://${str}`;
-}
-
 const download_url = "view://download";
-
-function to_more_url(url: string) {
-    if (url.match(/^magnet:?xt=urn:/)) {
-        return `${download_url}?url=${encodeURIComponent(url)}`;
-    }
-    return url;
-}
 
 let default_engine = "";
 let search_url = "";
 let suggestions_url = "";
 
-init_search();
-
-function init_search() {
-    default_engine = setting.get("searchEngine.default");
-    const e = setting.get("searchEngine.engine");
-    search_url = e[default_engine].url;
-    suggestions_url = e[default_engine].sug;
-}
-
-function to_search_url(str: string) {
-    return search_url.replace("%s", encodeURIComponent(str));
-}
-
 let search_list: { url: string; text: string; icon: string }[] = [];
-function search(str: string) {
-    search_list = [];
-    search_list.push({ url: to_more_url(to_url(str)), text: `访问 ${to_url(str)}`, icon: browser_svg });
-    search_list.push({ url: to_search_url(str), text: `搜索 ${str}`, icon: search_svg });
-    fetch(suggestions_url.replace("%s", encodeURIComponent(str)))
-        .then((j) => j.json())
-        .then((j) => {
-            if (j[1]) {
-                for (const s of j[1]) {
-                    search_list.push({ url: to_search_url(s), text: s, icon: search_svg });
-                }
-            }
-            r_search_l();
-        });
-}
-
-function r_search_l() {
-    search_list_el.clear();
-    for (const i of search_list) {
-        const el = view().data({ url: i.url });
-        const icon_el = view().add(image(i.icon, "icon").class("icon"));
-        const text = view().add(i.text);
-        el.add([icon_el, text]);
-        el.on("pointerdown", (_e) => {
-            treeX.add(i.url);
-            set_chrome_size("normal");
-        });
-        search_list_el.add(el);
-    }
-}
-
-const treeEl = view("x")
-    .class(barStyle)
-    .style({ height: "calc(100vh - 24px)", width: "100vw", overflow: "scroll" })
-    .addInto();
 
 const treeX = {
     get: (id: number) => {
@@ -311,6 +78,80 @@ type tree = {
         next?: number[];
     };
 };
+
+const site_p_list: Map<string, string[]> = new Map();
+
+// --- ui
+
+const barStyle = addClass(
+    {
+        backgroundColor: "var(--bg)",
+        backdropFilter: "var(--blur)",
+    },
+    {},
+);
+
+const w_mini = iconEl("minimize").on("click", () => {
+    ipcRenderer.send("win", pid, "mini");
+    set_chrome_size("hide");
+});
+const w_max = iconEl("maximize").on("click", () => {
+    ipcRenderer.send("win", pid, "max");
+    set_chrome_size("hide");
+});
+const w_close = iconEl("close").on("click", () => {
+    ipcRenderer.send("win", pid, "close");
+});
+
+const system_el = view().attr({ id: "system" });
+
+system_el.add([w_mini, w_max, w_close]);
+
+const buttons = view().attr({ id: "buttons" });
+const url_el = ele("span").attr({ id: "url" });
+
+const b_reload = iconEl("reload").on("click", () => {
+    treeX.reload(topestView);
+    set_chrome_size("hide");
+});
+
+const show_tree = iconEl("reload").on("click", () => {
+    set_chrome_size("full");
+    render_tree();
+});
+
+buttons.add([b_reload, show_tree]);
+
+view()
+    .add([buttons, view().attr({ id: "url_bar" }).add(url_el), system_el])
+    .addInto()
+    .attr({ id: "bar" });
+
+const search_list_el = view().attr({ id: "search_list" }).addInto();
+url_el.on("pointerdown", (e) => {
+    if ((e.target as HTMLElement).tagName === "INPUT") return;
+    e.preventDefault();
+    const url_i = input().sv(url_el.el.innerText);
+    url_el.clear().add(url_i);
+    url_i.el.setSelectionRange(0, url_i.gv.length);
+    url_i.el.focus();
+    set_chrome_size("full");
+    init_search();
+    url_i
+        .on("input", () => {
+            search(url_i.gv);
+            r_search_l();
+        })
+        .on("blur", () => {
+            set_url(url_i.gv);
+            set_chrome_size("hide");
+        });
+});
+
+const treeEl = view("x")
+    .class(barStyle)
+    .style({ height: "calc(100vh - 24px)", width: "100vw", overflow: "scroll" })
+    .addInto();
 
 class Card extends HTMLElement {
     view_id: number;
@@ -391,6 +232,143 @@ class Card extends HTMLElement {
 }
 
 customElements.define("view-card", Card);
+
+const menu_el = view().attr({ id: "menu", popover: "auto" }).addInto();
+
+menu_el.el.addEventListener("toggle", (e) => {
+    // @ts-ignore
+    if (e.newState === "closed") {
+        set_chrome_size("hide");
+    }
+});
+
+menu_el.on("click", hide_menu);
+
+const site_about_el = view().attr({ popover: "auto", id: "site_about" }).addInto();
+const permission_el = view().addInto(site_about_el).attr({ id: "permission" });
+
+site_about_el.el.addEventListener("toggle", (e) => {
+    // @ts-ignore
+    if (e.newState === "closed") {
+        set_chrome_size("hide");
+        if (site_p_list.get(now_url).length !== 0) {
+            for (const i of site_p_list.get(now_url)) {
+                ipcRenderer.send("site_about", now_url, i, false);
+            }
+        }
+    }
+});
+
+// --- fun
+
+function set_chrome_size(type: "normal" | "hide" | "full") {
+    if (type === "hide" && chrome_size_fixed) {
+        chrome_size = "normal";
+    } else {
+        chrome_size = type;
+    }
+    ipcRenderer.send("win", pid, `${chrome_size}_chrome`);
+    if (chrome_size === "normal") {
+        search_list_el.clear();
+    }
+}
+
+function set_url(url: string) {
+    now_url = url;
+    try {
+        let x = new URL(url);
+        if (location.href.split("/").slice(0, -1).join("/") === x.href.split("/").slice(0, -1).join("/")) {
+            x = new URL(`view://${x.pathname.split("/").at(-1).replace(".html", "")}`);
+        }
+        const hurl = x.toString();
+        let ss = 0;
+        let se = hurl.length;
+        if (hurl.indexOf(".") !== -1) {
+            ss = hurl.indexOf(".") + 1;
+        } else {
+            ss = hurl.indexOf("://") + 3;
+        }
+        for (let i = ss; i < hurl.length; i++) {
+            const element = hurl[i];
+            if (!element.match(/[a-zA-Z.]/)) {
+                se = i;
+            }
+        }
+        const l0 = hurl.slice(0, ss);
+        const h = hurl.slice(ss, se);
+        const l1 = hurl.slice(se);
+        const m = txt();
+        m.sv(h);
+        url_el.clear().add([l0, m, l1]);
+    } catch (error) {
+        const m = txt();
+        m.sv(url);
+        url_el.clear().add(m);
+    }
+}
+
+function to_url(str: string) {
+    if (str.match(/^:\/\//)) {
+        return `https${str}`;
+    }
+    if (str.match(/^[a-z]+:\/\//i)) {
+        return str;
+    }
+    if (str.match(/^[0-9a-fA-F]{40}$/)) {
+        return `magnet:?xt=urn:btih:${str}`;
+    }
+    return `https://${str}`;
+}
+
+function to_more_url(url: string) {
+    if (url.match(/^magnet:?xt=urn:/)) {
+        return `${download_url}?url=${encodeURIComponent(url)}`;
+    }
+    return url;
+}
+
+function init_search() {
+    default_engine = setting.get("searchEngine.default");
+    const e = setting.get("searchEngine.engine");
+    search_url = e[default_engine].url;
+    suggestions_url = e[default_engine].sug;
+}
+
+function to_search_url(str: string) {
+    return search_url.replace("%s", encodeURIComponent(str));
+}
+
+function search(str: string) {
+    search_list = [];
+    search_list.push({ url: to_more_url(to_url(str)), text: `访问 ${to_url(str)}`, icon: browser_svg });
+    search_list.push({ url: to_search_url(str), text: `搜索 ${str}`, icon: search_svg });
+    fetch(suggestions_url.replace("%s", encodeURIComponent(str)))
+        .then((j) => j.json())
+        .then((j) => {
+            if (j[1]) {
+                for (const s of j[1]) {
+                    search_list.push({ url: to_search_url(s), text: s, icon: search_svg });
+                }
+            }
+            r_search_l();
+        });
+}
+
+function r_search_l() {
+    search_list_el.clear();
+    for (const i of search_list) {
+        const el = view().data({ url: i.url });
+        const icon_el = view().add(image(i.icon, "icon").class("icon"));
+        const text = view().add(i.text);
+        el.add([icon_el, text]);
+        el.on("pointerdown", (_e) => {
+            treeX.add(i.url);
+            set_chrome_size("normal");
+        });
+        search_list_el.add(el);
+    }
+}
+
 function create_card(id: number): Card {
     const view = treeX.get(id);
     const title = view.title;
@@ -409,29 +387,6 @@ function render_tree() {
         treeEl.add(x);
     }
 }
-
-// @ts-ignore
-window.r = render_tree;
-
-// 同步树状态，一般由其他窗口发出
-ipcRenderer.on("view", (_e, type: "add" | "close" | "update" | "move", id: number, pid: number, wid: number, op) => {
-    switch (type) {
-        case "add":
-            cardAdd(id, pid);
-            break;
-        case "close":
-            cardClose(id);
-            break;
-        case "update":
-            cardUpdata(id, op);
-            break;
-        case "move":
-            cardMove(id, wid);
-            break;
-        default:
-            break;
-    }
-});
 
 function getCardById(id: number) {
     return document.querySelector(`div[data-id="${id}"]`) as Card;
@@ -466,7 +421,6 @@ function cardMove(id: number, newParent: number) {
     }
 }
 
-const menu_el = view().attr({ id: "menu", popover: "auto" }).addInto();
 function menu(params: Electron.ContextMenuParams) {
     set_chrome_size("full");
 
@@ -544,38 +498,10 @@ function menu(params: Electron.ContextMenuParams) {
     }, 10);
 }
 
-menu_el.el.addEventListener("toggle", (e) => {
-    // @ts-ignore
-    if (e.newState === "closed") {
-        set_chrome_size("hide");
-    }
-});
-
-menu_el.on("click", hide_menu);
-
 function hide_menu() {
     // @ts-ignore
     menu_el.hidePopover();
 }
-
-const site_about_el = view().attr({ popover: "auto", id: "site_about" }).addInto();
-const permission_el = view().addInto(site_about_el).attr({ id: "permission" });
-
-const site_p_list: Map<string, string[]> = new Map();
-ipcRenderer.on("site_about", (_e, p, url) => {
-    console.log(url);
-
-    set_chrome_size("full");
-
-    // @ts-ignore
-    site_about_el.showPopover();
-
-    const l = site_p_list.get(url) || [];
-    l.push(p);
-    site_p_list.set(url, l);
-
-    render_site_permission_requ();
-});
 
 function render_site_permission_requ() {
     permission_el.clear();
@@ -612,14 +538,96 @@ function render_site_permission_requ() {
     permission_el.add([t, lel]);
 }
 
-site_about_el.el.addEventListener("toggle", (e) => {
-    // @ts-ignore
-    if (e.newState === "closed") {
-        set_chrome_size("hide");
-        if (site_p_list.get(now_url).length !== 0) {
-            for (const i of site_p_list.get(now_url)) {
-                ipcRenderer.send("site_about", now_url, i, false);
+ipcRenderer.on("win", (_e, a, arg) => {
+    switch (a) {
+        case "max":
+            w_max.clear().add(icon("unmaximize"));
+            break;
+        case "unmax":
+            w_max.clear().add(icon("maximize"));
+            break;
+        case "id":
+            pid = arg;
+            break;
+        case "userData":
+            userDataPath = arg;
+            break;
+        case "menu":
+            console.log(arg);
+            menu(arg);
+            break;
+        case "zoom":
+            console.log(arg);
+            // TODO show
+            break;
+        case "chrome_toggle":
+            if (chrome_size === "hide") {
+                set_chrome_size("normal");
+            } else if (chrome_size === "normal") {
+                set_chrome_size("hide");
             }
-        }
+            break;
     }
+});
+
+ipcRenderer.on("url", (_e, view, type, arg) => {
+    switch (type) {
+        case "new":
+            topestView = view;
+            activeViews.push(view);
+            myViews.push(view);
+            if (chrome_size !== "full") set_chrome_size("normal");
+            break;
+        case "url":
+            if (view === topestView) {
+                set_url(arg);
+            }
+            break;
+        case "load":
+            if (arg) {
+            } else {
+                if (chrome_size !== "full" && !chrome_size_fixed) set_chrome_size("hide");
+            }
+            break;
+    }
+});
+
+init_search();
+
+// @ts-ignore
+window.r = render_tree;
+
+// 同步树状态，一般由其他窗口发出
+ipcRenderer.on("view", (_e, type: "add" | "close" | "update" | "move", id: number, pid: number, wid: number, op) => {
+    switch (type) {
+        case "add":
+            cardAdd(id, pid);
+            break;
+        case "close":
+            cardClose(id);
+            break;
+        case "update":
+            cardUpdata(id, op);
+            break;
+        case "move":
+            cardMove(id, wid);
+            break;
+        default:
+            break;
+    }
+});
+
+ipcRenderer.on("site_about", (_e, p, url) => {
+    console.log(url);
+
+    set_chrome_size("full");
+
+    // @ts-ignore
+    site_about_el.showPopover();
+
+    const l = site_p_list.get(url) || [];
+    l.push(p);
+    site_p_list.set(url, l);
+
+    render_site_permission_requ();
 });
