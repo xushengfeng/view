@@ -147,6 +147,10 @@ function render(directory: file[]) {
             if (isDir) {
                 nowPath = path.join(nowPath, targetPath);
                 render(entry(nowPath));
+            } else {
+                // todo 打开文件 自定义
+                console.log(targetPath);
+                window.open(`view://view?path=${path.join(nowPath, targetPath)}`);
             }
         }
     };

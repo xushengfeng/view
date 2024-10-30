@@ -509,6 +509,7 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
         },
     };
     if (url.startsWith("view://") || url.startsWith("file://")) {
+        // todo file安全性
         op.webPreferences.nodeIntegration = true;
         op.webPreferences.contextIsolation = false;
         op.webPreferences.webSecurity = false;
