@@ -159,12 +159,12 @@ url_el.on("pointerdown", (e) => {
         });
 });
 
-const treePel = view()
+const treePel = view("y")
     .class(barStyle)
     .style({ height: "calc(100vh - 24px)", width: "100vw", overflow: "scroll" })
     .addInto();
 
-const treeEl = view("x").style({ width: "100vw", overflow: "scroll" }).addInto(treePel);
+const treeEl = view("x").style({ width: "100vw", overflow: "scroll", flexGrow: 1 }).addInto(treePel);
 
 class Card extends HTMLElement {
     view_id: number;
