@@ -438,6 +438,8 @@ const keyvSqlite = new KeyvSqlite(`sqlite://${app.getPath("userData")}/text.sqli
 const treeTextKeyv = new Keyv({ store: keyvSqlite });
 const keyvSqlite1 = new KeyvSqlite(`sqlite://${app.getPath("userData")}/tree.sqlite`);
 const treeKeyv = new Keyv({ store: keyvSqlite1 });
+const keyvSqlite2 = new KeyvSqlite(`sqlite://${app.getPath("userData")}/name.sqlite`);
+const nameKeyv = new Keyv({ store: keyvSqlite2 });
 
 const tree_text_store = {
     set: (id: view_id, value: string) => {
@@ -459,6 +461,14 @@ const treeStore = {
     },
     get: (id: view_id) => {
         return treeKeyv.get(String(id)) as Promise<tree[0]>;
+    },
+};
+const nameStore = {
+    set: async (id: view_id, name: string) => {
+        return nameKeyv.set(String(id), name);
+    },
+    get: (id: view_id) => {
+        return nameKeyv.get(String(id)) as Promise<string>;
     },
 };
 
