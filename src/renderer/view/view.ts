@@ -1,7 +1,11 @@
 const fs = require("node:fs") as typeof import("fs");
 const path = require("node:path") as typeof import("path");
 
-import { check, label, p, txt, view } from "dkh-ui";
+import { addClass, check, type ElType, image, label, p, txt, view } from "dkh-ui";
+
+// import { loadMusicMetadata } from 'music-metadata/lib/core';
+// const { loadMusicMetadata } = require("music-metadata");
+import { parseBuffer } from "music-metadata";
 
 const main = view().addInto();
 
@@ -54,13 +58,74 @@ function renderPhoto(filePath: string) {
     };
 }
 
-function renderAudio(filePath: string) {
+async function renderAudio(filePath: string) {
     const audio = new Audio(`file://${filePath}`);
     audio.controls = true;
     main.add(audio);
-    // todo 封面
-    // todo 源属性
-    // todo 歌词
+    // todo 控件
+
+    const buffer = fs.readFileSync(filePath);
+
+    try {
+        // @ts-ignore
+        const metadata = await parseBuffer(buffer);
+        console.log(metadata);
+
+        if (metadata.common.title) {
+            main.add(txt(metadata.common.title));
+        }
+
+        if (metadata.common.artists) {
+            main.add(txt(metadata.common.artists.join("、")));
+        }
+
+        if (metadata.common.album) {
+            main.add(txt(metadata.common.album));
+        }
+
+        if (metadata.common.picture?.[0]) {
+            const base64 = Buffer.from(metadata.common.picture[0].data).toString("base64");
+            main.add(
+                image(`data:${metadata.common.picture[0].format};base64,${base64}`, "封面").style({ width: "240px" }),
+            );
+        }
+
+        if (metadata.common.lyrics) {
+            const lyrics = metadata.common.lyrics[0].text;
+            const lyricEl = view().addInto(main);
+            showLyric(lyricEl, lyrics, audio);
+        }
+    } catch (error) {
+        console.error("Error parsing metadata:", error.message);
+    }
+}
+
+function showLyric(el: ElType<HTMLElement>, lyrics: string, audio: HTMLAudioElement) {
+    const l: { time: number; text: string }[] = [];
+    for (const lyric of lyrics.trim().split("\n")) {
+        const t = lyric.indexOf("]");
+        const time = lyric.slice(1, t);
+        const text = lyric.slice(t + 1);
+        const nt = time.split(".");
+        const mainT = nt[0]
+            .split(":")
+            .map((x) => Number(x))
+            .reduce((a, b) => a * 60 + b);
+        l.push({ time: mainT * 1000 + Number(nt[1]), text: text.trim() });
+    }
+
+    el.add(l.map((v) => p(v.text)));
+    const nowLyricClass = addClass({ background: "#ddd" }, {});
+    audio.ontimeupdate = () => {
+        const t = audio.currentTime * 1000;
+        const lyric = l.findLastIndex((x) => x.time <= t);
+        const oldEl = el.query(`.${nowLyricClass}`)?.el;
+        const newEl = el.query(`:nth-child(${lyric + 1})`)?.el;
+        if (oldEl !== newEl) {
+            oldEl?.classList.remove(nowLyricClass);
+            newEl?.classList.add(nowLyricClass);
+        }
+    };
 }
 
 function renderVideo(filePath: string) {
