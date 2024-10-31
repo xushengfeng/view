@@ -175,7 +175,7 @@ app.whenReady().then(() => {
                     click(_i, w) {
                         for (const i of winL) {
                             if (i[1] === w) {
-                                winToChrome.get(i[0]).view.webContents.send("win", "chrome_toggle");
+                                winToChrome.get(i[0])?.view.webContents.send("win", "chrome_toggle");
                                 break;
                             }
                         }
@@ -222,11 +222,9 @@ app.on("will-quit", () => {
     globalShortcut.unregisterAll();
 });
 
-let the_icon = null;
+let the_icon = path.join(run_path, "assets/logo/1024x1024.png");
 if (process.platform === "win32") {
     the_icon = path.join(run_path, "assets/logo/icon.ico");
-} else {
-    the_icon = path.join(run_path, "assets/logo/1024x1024.png");
 }
 ipcMain.on("setting", async (event, arg, arg1, arg2) => {
     switch (arg) {
@@ -377,6 +375,10 @@ async function createWin() {
 function setChromeSize(pid: bwin_id) {
     const main_window = winL.get(pid);
     const x = winToChrome.get(pid);
+    if (!main_window || !x) {
+        console.log(`x find window ${pid}`);
+        return;
+    }
     const o = { full: main_window.getContentSize()[1], normal: 24, hide: 0 };
     x.view.setBounds({
         x: 0,
@@ -390,6 +392,8 @@ ipcMain.on("win", (e, pid, type) => {
     console.log(pid, type);
     if (!pid) return;
     const main_window = BrowserWindow.fromWebContents(e.sender);
+    if (!main_window) return;
+    const chrome = winToChrome.get(pid);
     switch (type) {
         case "mini":
             main_window.minimize();
@@ -404,22 +408,22 @@ ipcMain.on("win", (e, pid, type) => {
         case "close":
             main_window.close();
             winL.delete(pid);
-            for (const i of winToViewl.get(pid)) {
+            for (const i of winToViewl.get(pid) ?? []) {
                 viewL.delete(i);
             }
             winToViewl.delete(pid);
             winToChrome.delete(pid);
             break;
         case "full_chrome":
-            winToChrome.get(pid).size = "full";
+            if (chrome) chrome.size = "full";
             setChromeSize(pid);
             break;
         case "normal_chrome":
-            winToChrome.get(pid).size = "normal";
+            if (chrome) chrome.size = "normal";
             setChromeSize(pid);
             break;
         case "hide_chrome":
-            winToChrome.get(pid).size = "hide";
+            if (chrome) chrome.size = "hide";
             setChromeSize(pid);
             break;
     }
@@ -490,14 +494,18 @@ function get_real_url(url: string) {
 }
 
 /** 创建浏览器页面 */
-async function createView(_window_name: bwin_id, url: string, pid: view_id, id?: view_id) {
+async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?: view_id) {
     let window_name = _window_name;
-    const main_window = winL.get(window_name);
-    const chrome = winToChrome.get(window_name).view;
+    let main_window = winL.get(window_name);
+    const chrome = winToChrome.get(window_name)?.view;
 
-    if (main_window.isDestroyed()) {
+    if (!main_window || main_window.isDestroyed()) {
         window_name = await createWin();
+        main_window = winL.get(window_name);
     }
+
+    if (!main_window || !chrome) return;
+
     const view_id = id ?? (new Date().getTime() as view_id);
 
     treeStore.set(view_id, "url", url);
@@ -510,10 +518,12 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
     };
     if (url.startsWith("view://") || url.startsWith("file://")) {
         // todo file安全性
-        op.webPreferences.nodeIntegration = true;
-        op.webPreferences.contextIsolation = false;
-        op.webPreferences.webSecurity = false;
-        op.webPreferences.preload = null;
+        if (op.webPreferences) {
+            op.webPreferences.nodeIntegration = true;
+            op.webPreferences.contextIsolation = false;
+            op.webPreferences.webSecurity = false;
+            op.webPreferences.preload = undefined;
+        }
     }
 
     const search_view = new BrowserView(op);
@@ -521,7 +531,7 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
     viewL.set(view_id, search_view);
     main_window.addBrowserView(search_view);
     main_window.setTopBrowserView(chrome);
-    winToViewl.get(window_name).push(view_id);
+    winToViewl.get(window_name)?.push(view_id);
     const wc = search_view.webContents;
     const real_url = get_real_url(url);
     wc.loadURL(real_url);
@@ -535,7 +545,7 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
     });
     if (dev) wc.openDevTools();
     if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "new", url);
-    sendViews("update", view_id, null, null, { url: url });
+    sendViews("update", view_id, undefined, undefined, { url: url });
     wc.on("destroyed", () => {
         main_window.removeBrowserView(search_view);
         viewL.delete(view_id);
@@ -543,28 +553,28 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
     wc.on("page-title-updated", (_event, title) => {
         treeStore.set(view_id, "title", title);
 
-        sendViews("update", view_id, null, null, { title });
+        sendViews("update", view_id, undefined, undefined, { title });
     });
     wc.on("page-favicon-updated", (_event, favlogo) => {
         treeStore.set(view_id, "logo", favlogo[0]);
-        sendViews("update", view_id, null, null, { icon: favlogo[0] });
+        sendViews("update", view_id, undefined, undefined, { icon: favlogo[0] });
     });
     wc.on("will-navigate", (event) => {
         createView(window_name, event.url, view_id);
         event.preventDefault();
     });
     wc.on("did-navigate", (_event, url) => {
-        sendViews("update", view_id, null, null, { url: url });
+        sendViews("update", view_id, undefined, undefined, { url: url });
     });
     wc.on("did-navigate-in-page", (_event, url, isMainFrame) => {
         if (isMainFrame) treeStore.set(view_id, "url", url);
-        sendViews("update", view_id, null, null, { url: url });
+        sendViews("update", view_id, undefined, undefined, { url: url });
     });
     wc.on("did-start-loading", () => {
-        sendViews("update", view_id, null, null, { loading: true });
+        sendViews("update", view_id, undefined, undefined, { loading: true });
     });
     wc.on("did-stop-loading", () => {
-        sendViews("update", view_id, null, null, { loading: false });
+        sendViews("update", view_id, undefined, undefined, { loading: false });
     });
     wc.on("did-fail-load", (_event, err_code, err_des) => {
         renderer_path(wc, "browser_bg.html", {
@@ -573,7 +583,7 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
         if (dev) wc.openDevTools();
     });
     async function save_pic() {
-        let image = await wc.capturePage();
+        const image = await wc.capturePage();
         fs.writeFile(
             path.join(app.getPath("userData"), "capture", `${view_id}.jpg`),
             // @ts-ignore
@@ -585,7 +595,6 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
                 .toJPEG(9),
             (err) => {
                 if (err) return;
-                image = null;
             },
         );
     }
@@ -661,14 +670,16 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
     });
 
     if (id) {
-        sendViews("restart", view_id, undefined, null, null);
+        sendViews("restart", view_id, undefined, undefined, undefined);
         return id;
     }
 
-    const l = (await treeStore.get(pid))?.next || [];
-    l.push(view_id);
-    treeStore.set(pid, "next", l);
-    sendViews("add", view_id, pid, null, null);
+    if (pid) {
+        const l = (await treeStore.get(pid))?.next || [];
+        l.push(view_id);
+        treeStore.set(pid, "next", l);
+        sendViews("add", view_id, pid, undefined, undefined);
+    }
 
     return view_id;
 }
@@ -683,14 +694,14 @@ ipcMain.on("tab_view", async (e, type, id: view_id, arg2) => {
             e.returnValue = await treeStore.get(id);
             break;
         case "close":
-            search_window.webContents.close();
-            sendViews("close", id, null, null, null);
+            search_window?.webContents.close();
+            sendViews("close", id, undefined, undefined, undefined);
             break;
         case "stop":
-            search_window.webContents.stop();
+            search_window?.webContents.stop();
             break;
         case "reload":
-            search_window.webContents.reload();
+            search_window?.webContents.reload();
             break;
         case "add":
             for (const x of winL) {
@@ -707,10 +718,14 @@ ipcMain.on("tab_view", async (e, type, id: view_id, arg2) => {
             winToViewl.forEach((bvs, bid) => {
                 for (const i of bvs) {
                     if (i === id) {
-                        winL.get(bid).setTopBrowserView(viewL.get(i));
-                        winL.get(bid).setTopBrowserView(winToChrome.get(bid).view);
-                        winL.get(bid).moveTop();
-                        winL.get(bid).focus();
+                        const win = winL.get(bid);
+                        const chrome = winToChrome.get(bid)?.view;
+                        const view = viewL.get(id);
+                        if (!win || !chrome || !view) return;
+                        win.setTopBrowserView(view);
+                        win.setTopBrowserView(chrome);
+                        win.moveTop();
+                        win.focus();
                         return;
                     }
                 }
@@ -722,16 +737,16 @@ ipcMain.on("tab_view", async (e, type, id: view_id, arg2) => {
                 const w = x[1];
                 if (w === main_window) {
                     const url = (await treeStore.get(id)).url;
-                    createView(wid, url, null, id);
+                    createView(wid, url, undefined, id);
                     break;
                 }
             }
             break;
         case "dev":
-            search_window.webContents.openDevTools();
+            search_window?.webContents.openDevTools();
             break;
         case "inspect":
-            search_window.webContents.inspectElement(arg2.x, arg2.y);
+            search_window?.webContents.inspectElement(arg2.x, arg2.y);
             break;
         case "download":
             download(arg2);
@@ -739,10 +754,10 @@ ipcMain.on("tab_view", async (e, type, id: view_id, arg2) => {
     }
 });
 
-function sendViews(type: syncView, id: number, pid: number, wid: number, op: cardData) {
+function sendViews(type: syncView, id: number, pid?: number, wid?: number, op?: cardData) {
     for (const w of winL) {
-        const chrome = winToChrome.get(w[0]).view;
-        chrome.webContents.send("view", type, id, pid, wid, op);
+        const chrome = winToChrome.get(w[0])?.view;
+        chrome?.webContents.send("view", type, id, pid, wid, op);
     }
 }
 
@@ -757,6 +772,8 @@ ipcMain.on("view", (e, type, arg) => {
             break;
         case "input":
             console.log(arg);
+
+            if (!main_window) return;
 
             if (arg.action === "focus") {
                 const bv = new BrowserView();
@@ -808,7 +825,7 @@ function aria2_start() {
         child.stdout.on("data", (data) => {
             console.log(`Received chunk ${data}`);
             if (String(data).includes("listening on TCP port")) {
-                aria2_port = Number(String(data).match(/listening on TCP port ([0-9]+)/)[1]);
+                aria2_port = Number(String(data).match(/listening on TCP port ([0-9]+)/)?.[1]);
                 re(aria2_port);
             }
         });
@@ -916,10 +933,10 @@ function showItem(i: setting["windows"]["fixed"][0]) {
         const se = screen.getAllDisplays().find((x) => x.id === root);
         if (S.includes("px")) {
             if (a === "x") {
-                return Number.parseInt(S.replace("px", "")) + (se?.bounds?.x | 0);
+                return Number.parseInt(S.replace("px", "")) + (se?.bounds.x || 0);
             }
             if (a === "y") {
-                return Number.parseInt(S.replace("px", "")) + (se?.bounds?.y | 0);
+                return Number.parseInt(S.replace("px", "")) + (se?.bounds.y || 0);
             }
             return Number.parseInt(S.replace("px", ""));
         }
