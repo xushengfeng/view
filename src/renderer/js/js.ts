@@ -173,20 +173,20 @@ class Card extends HTMLElement {
     });
     _next: number[];
     _image: string;
-    _icon: string;
-    _url: string;
-    childrenEl: ElType<HTMLElement>;
+    _icon = "";
+    _url = "";
+    childrenEl: ElType<HTMLElement> = view();
     _active = false;
     closeEl = iconEl("close").on("click", () => {
         treeX.close(this.view_id);
         this.active(false);
     });
 
-    constructor(id: number, title: string, next: number[], image: string) {
+    constructor(id: number, title: string, next: number[] | undefined, image: string) {
         super();
         this.view_id = id;
         this._title.sv(title);
-        this._next = next;
+        this._next = next ?? [];
         this._image = image;
         this._active = activeViews.includes(this.view_id);
     }
@@ -269,7 +269,8 @@ class Card extends HTMLElement {
 
 customElements.define("view-card", Card);
 
-const menu_el = view().attr({ id: "menu", popover: "auto" }).addInto();
+const menu_el = view().attr({ id: "menu" }).addInto();
+menu_el.el.popover = "auto";
 
 menu_el.el.addEventListener("toggle", (e) => {
     // @ts-ignore
@@ -280,17 +281,17 @@ menu_el.el.addEventListener("toggle", (e) => {
 
 menu_el.on("click", hide_menu);
 
-const siteAboutEl = view().attr({ popover: "auto", id: "site_about" }).addInto();
+const siteAboutEl = view().attr({ id: "site_about" }).addInto();
+siteAboutEl.el.popover = "auto";
 const permissionEl = view().addInto(siteAboutEl).attr({ id: "permission" });
 
 siteAboutEl.el.addEventListener("toggle", (e) => {
     // @ts-ignore
     if (e.newState === "closed") {
         setChromeSize("hide");
-        if (site_p_list.get(now_url).length !== 0) {
-            for (const i of site_p_list.get(now_url)) {
-                ipcRenderer.send("site_about", now_url, i, false);
-            }
+        const list = site_p_list.get(now_url);
+        for (const i of list ?? []) {
+            ipcRenderer.send("site_about", now_url, i, false);
         }
     }
 });
@@ -318,7 +319,7 @@ function set_url(url: string) {
     try {
         let x = new URL(url);
         if (location.href.split("/").slice(0, -1).join("/") === x.href.split("/").slice(0, -1).join("/")) {
-            x = new URL(`view://${x.pathname.split("/").at(-1).replace(".html", "")}`);
+            x = new URL(`view://${(x.pathname.split("/").at(-1) ?? "").replace(".html", "")}`);
         }
         const hurl = x.toString();
         let ss = 0;
@@ -421,10 +422,8 @@ function renderTree() {
     treeEl.clear();
     treeEl.style({ display: "flex" });
     const i = 0;
-    const root = treeX
-        .get(0)
-        .next.toReversed()
-        .slice(i, i + 5);
+    // @ts-ignore
+    const root = (treeX.get(0).next ?? []).toReversed().slice(i, i + 5);
     // TODO 虚拟列表
     for (const i of root.toReversed()) {
         const x = create_card(i);

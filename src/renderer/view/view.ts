@@ -216,7 +216,7 @@ async function renderAudio(filePath: string) {
             lyricEl.style({ display: "none" });
         }
     } catch (error) {
-        console.error("Error parsing metadata:", error.message);
+        console.error("Error parsing metadata:", error);
     }
 }
 
@@ -250,7 +250,7 @@ function showLyric(el: ElType<HTMLElement>, lyrics: string, audio: HTMLAudioElem
         if (oldEl !== newEl) {
             oldEl?.classList.remove(nowLyricClass);
             newEl?.classList.add(nowLyricClass);
-            el.el.scrollTop = newEl?.offsetTop - (el.el.offsetHeight - newEl.offsetHeight) / 2;
+            if (newEl) el.el.scrollTop = newEl?.offsetTop - (el.el.offsetHeight - newEl.offsetHeight) / 2;
         }
     });
 }
@@ -267,7 +267,7 @@ function renderVideo(filePath: string) {
 pureStyle();
 
 const x = new URLSearchParams(location.search);
-if (x.get("path")) {
-    const filePath = x.get("path");
+const filePath = x.get("path");
+if (filePath) {
     mainRenderer(filePath);
 }

@@ -33,7 +33,7 @@ const contentEl = view().attr({ id: "content" }).addInto();
 const x = new URLSearchParams(location.search);
 let nowPath = "/";
 if (x.get("path")) {
-    nowPath = x.get("path");
+    nowPath = x.get("path") as string;
     render(entry(nowPath));
 }
 type file = {
@@ -67,18 +67,18 @@ function entry(directory: string) {
         try {
             stat = fs.statSync(fullPath);
             lstat = fs.lstatSync(fullPath);
+            if (!hidden || !isHidden)
+                l.push({
+                    name: entry.name,
+                    isDirectory: entry.isDirectory(),
+                    atime: stat?.atime,
+                    birthtime: stat?.birthtime,
+                    mtime: stat?.mtime,
+                    isSymbolicLink: lstat?.isSymbolicLink(), // lstat
+                    size: stat?.size,
+                    isHidden,
+                });
         } catch (error) {}
-        if (!hidden || !isHidden)
-            l.push({
-                name: entry.name,
-                isDirectory: entry.isDirectory(),
-                atime: stat?.atime,
-                birthtime: stat?.birthtime,
-                mtime: stat?.mtime,
-                isSymbolicLink: lstat?.isSymbolicLink(), // lstat
-                size: stat?.size,
-                isHidden,
-            });
     }
     return l;
 }
@@ -116,7 +116,7 @@ function render(directory: file[]) {
         let isDir = false;
         for (const i of eventPath) {
             if (i.getAttribute("data-path")) {
-                targetPath = i.getAttribute("data-path");
+                targetPath = i.getAttribute("data-path") as string;
                 isDir = i.getAttribute("data-dir") === "1";
                 break;
             }
