@@ -198,7 +198,7 @@ function processEl(media: HTMLMediaElement) {
         .addInto(processEl);
     trackPoint(processEl, {
         start: (e) => {
-            return { x: e.offsetX, y: e.offsetY, data: processNowEl.el.offsetWidth };
+            return { x: e.offsetX, y: e.offsetY, data: processEl.el.offsetWidth };
         },
         ing: (p, _e, { startData }) => {
             processNowEl.style({ width: `${(p.x / startData) * 100}%` });
