@@ -674,7 +674,7 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
         return id;
     }
 
-    if (pid) {
+    if (pid !== undefined) {
         const l = (await treeStore.get(pid))?.next || [];
         l.push(view_id);
         treeStore.set(pid, "next", l);
