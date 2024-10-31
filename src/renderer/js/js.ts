@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type { cardData } from "../../types";
+import type { cardData, syncView } from "../../types";
 
 const { ipcRenderer, clipboard } = require("electron") as typeof import("electron");
 import { addClass, button, ele, type ElType, image, input, pureStyle, txt, view } from "dkh-ui";
@@ -448,6 +448,15 @@ function cardAdd(id: number, parent: number) {
     }
 }
 
+function cardRestart(id: number) {
+    activeViews.push(id);
+    topestView = id;
+    myViews.push(id);
+    if (chrome_size !== "full") setChromeSize("normal");
+    const cardEl = getCardById(id);
+    cardEl.active(true);
+}
+
 function cardClose(id: number) {
     activeViews = activeViews.filter((x) => x !== id);
     const cardEl = getCardById(id);
@@ -623,11 +632,14 @@ ipcRenderer.on("win", (_e, a, arg) => {
 init_search();
 
 // 同步树状态
-ipcRenderer.on("view", (_e, type: "add" | "close" | "update" | "move", id: number, pid: number, wid: number, op) => {
+ipcRenderer.on("view", (_e, type: syncView, id: number, pid: number, wid: number, op) => {
     console.log(type, id, pid, wid, op);
     switch (type) {
         case "add":
             cardAdd(id, pid);
+            break;
+        case "restart":
+            cardRestart(id);
             break;
         case "close":
             cardClose(id);

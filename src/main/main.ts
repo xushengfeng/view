@@ -19,7 +19,7 @@ import { spawn, exec } from "node:child_process";
 import * as fs from "node:fs";
 import { t, lan, getLans, matchFitLan } from "../../lib/translate/translate";
 import url from "node:url";
-import type { setting, DownloadItem, cardData } from "../types";
+import type { setting, DownloadItem, cardData, syncView } from "../types";
 const Keyv = require("keyv").default as typeof import("keyv").default;
 const KeyvSqlite = require("@keyv/sqlite").default as typeof import("@keyv/sqlite").default;
 
@@ -660,7 +660,10 @@ async function createView(_window_name: bwin_id, url: string, pid: view_id, id?:
         chrome.webContents.send("win", "zoom", x);
     });
 
-    if (id) return id;
+    if (id) {
+        sendViews("restart", view_id, undefined, null, null);
+        return id;
+    }
 
     const l = (await treeStore.get(pid))?.next || [];
     l.push(view_id);
@@ -736,7 +739,7 @@ ipcMain.on("tab_view", async (e, type, id: view_id, arg2) => {
     }
 });
 
-function sendViews(type: "add" | "close" | "update" | "move", id: number, pid: number, wid: number, op: cardData) {
+function sendViews(type: syncView, id: number, pid: number, wid: number, op: cardData) {
     for (const w of winL) {
         const chrome = winToChrome.get(w[0]).view;
         chrome.webContents.send("view", type, id, pid, wid, op);

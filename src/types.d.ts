@@ -49,6 +49,8 @@ export interface setting {
     };
 }
 
+type syncView = "add" | "close" | "update" | "move" | "restart";
+
 export interface cardData {
     url?: string;
     title?: string;
