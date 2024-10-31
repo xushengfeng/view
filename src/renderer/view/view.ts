@@ -72,7 +72,9 @@ async function renderAudio(filePath: string) {
     const audio = new Audio(`file://${filePath}`);
     main.add(audio);
 
-    const music = view("x").style({ justifyContent: "space-evenly" }).addInto(main); // todo < 320 * 2 : y
+    const music = view("x", "wrap")
+        .style({ justifyContent: "space-evenly", height: "100vh", overflowY: "auto" })
+        .addInto(main);
     const left = view("y")
         .addInto(music)
         .style({ minWidth: "320px", height: "100vh", alignItems: "center", justifyContent: "center" });
