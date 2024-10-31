@@ -1,7 +1,7 @@
 const fs = require("node:fs") as typeof import("fs");
 const path = require("node:path") as typeof import("path");
 
-import { addClass, check, type ElType, image, label, p, pureStyle, spacer, trackPoint, txt, view } from "dkh-ui";
+import { addClass, check, type ElType, image, label, p, pack, pureStyle, spacer, trackPoint, txt, view } from "dkh-ui";
 
 import { getImgUrl } from "../root/root";
 
@@ -14,7 +14,7 @@ function icon(src: string) {
     return image(getImgUrl(`${src}.svg`), "icon").class("icon");
 }
 
-const main = view().addInto();
+const main = view().style({ width: "100vw", height: "100vh" }).addInto();
 
 function mainRenderer(filePath: string) {
     if (filePath.match(/\.(html|htm)$/i)) {
@@ -83,32 +83,10 @@ async function renderAudio(filePath: string) {
 
     const controlsEl = view("y").style({ alignItems: "center" }).addInto(left);
 
-    const playBtn = check("p", [
-        icon("pause").style({ width: "24px" }) /* playing */,
-        icon("recume").style({ width: "24px" }),
-    ])
-        .on("change", () => {
-            if (playBtn.gv) {
-                audio.play();
-            } else {
-                audio.pause();
-            }
-        })
-        .sv(false);
-
-    audio.onplay = () => {
-        playBtn.sv(true);
-    };
-    audio.onpause = () => {
-        playBtn.sv(false);
-    };
-    audio.onended = () => {
-        playBtn.sv(false);
-    };
+    const playBtn = playButton(audio);
 
     audio.onloadedmetadata = () => {
         audio.play();
-        playBtn.sv(true);
     };
 
     controlsEl.add([processEl(audio), playBtn]);
@@ -223,6 +201,32 @@ function processEl(media: HTMLMediaElement) {
     return view("y").add([processEl, view("x").add([timeNowEl, spacer(), timeTotalEl])]);
 }
 
+function playButton(media: HTMLMediaElement) {
+    const playBtn = check("p", [
+        icon("pause").style({ width: "24px" }) /* playing */,
+        icon("recume").style({ width: "24px" }),
+    ])
+        .on("change", () => {
+            if (playBtn.gv) {
+                media.play();
+            } else {
+                media.pause();
+            }
+        })
+        .sv(false);
+
+    media.onplay = () => {
+        playBtn.sv(true);
+    };
+    media.onpause = () => {
+        playBtn.sv(false);
+    };
+    media.onended = () => {
+        playBtn.sv(false);
+    };
+    return playBtn;
+}
+
 function showLyric(el: ElType<HTMLElement>, lyrics: string, audio: HTMLAudioElement) {
     const l: { time: number; text: string }[] = [];
     for (const lyric of lyrics.trim().split("\n")) {
@@ -261,9 +265,34 @@ function showLyric(el: ElType<HTMLElement>, lyrics: string, audio: HTMLAudioElem
 function renderVideo(filePath: string) {
     const video = document.createElement("video");
     video.src = `file://${filePath}`;
-    video.controls = true;
-    main.add(video);
-    // todo 高级控件
+
+    main.style({ position: "relative" });
+
+    const vEl = view().style({ width: "100%", height: "100%" }).addInto(main);
+    const vControlsPEl = view().style({ position: "absolute", bottom: "0", width: "100%" }).addInto(main);
+    const vControlsEl = view("y")
+        .style({
+            alignContent: "center",
+            width: "480px",
+            padding: "16px",
+            borderRadius: "16px",
+            margin: "0 auto 16px",
+            backgroundColor: "#fff9",
+            boxShadow: "0 0 16px rgba(0,0,0,0.12)",
+            backdropFilter: "blur(16px)",
+            transition: "0.4s",
+        })
+        .class(addClass({ opacity: 0 }, { "&:hover": { opacity: 1 } }));
+
+    const playBtn = playButton(video);
+
+    video.onloadedmetadata = () => {
+        video.play();
+    };
+
+    vEl.add(pack(video).style({ width: "100%", height: "100%", objectFit: "contain" }));
+    vControlsPEl.add(vControlsEl);
+    vControlsEl.add([processEl(video), playBtn]).style({ alignItems: "center" });
     // todo 字幕
 }
 
