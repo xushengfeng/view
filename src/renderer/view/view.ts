@@ -83,50 +83,6 @@ async function renderAudio(filePath: string) {
 
     const controlsEl = view("y").style({ alignItems: "center" }).addInto(left);
 
-    function timeTrans(t: number) {
-        const nt = Math.round(t);
-        const h = Math.floor(nt / 60 / 60);
-        const m = Math.floor((nt - h * 60 * 60) / 60);
-        const s = nt % 60;
-        const base = `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-        if (h === 0) {
-            return base;
-        }
-        return `${h}:${base}`;
-    }
-
-    const timeNowEl = txt()
-        .bindSet((t: number, el) => {
-            el.innerText = timeTrans(t);
-        })
-        .sv(0);
-    const timeTotalEl = txt()
-        .bindSet((t: number, el) => {
-            el.innerText = timeTrans(t);
-        })
-        .sv(0);
-    const processEl = view("x").style({ width: "240px", height: "2px", backgroundColor: "#ddd" });
-    const processNowEl = view("x")
-        .style({ width: "0%", height: "100%", backgroundColor: "#000" })
-        .bindSet((t: number, el) => {
-            el.style.width = `${(t / audio.duration) * 100}%`;
-        })
-        .addInto(processEl);
-    trackPoint(processEl, {
-        start: (e) => {
-            return { x: e.offsetX, y: e.offsetY, data: processNowEl.el.offsetWidth };
-        },
-        ing: (p, _e, { startData }) => {
-            processNowEl.style({ width: `${(p.x / startData) * 100}%` });
-            return p.x / startData;
-        },
-        end: (_e, { ingData }) => {
-            const time = audio.duration * ingData;
-            audio.currentTime = time;
-            timeNowEl.sv(time);
-        },
-    });
-
     const playBtn = check("p", [
         icon("pause").style({ width: "24px" }) /* playing */,
         icon("recume").style({ width: "24px" }),
@@ -151,17 +107,11 @@ async function renderAudio(filePath: string) {
     };
 
     audio.onloadedmetadata = () => {
-        timeTotalEl.sv(audio.duration);
         audio.play();
         playBtn.sv(true);
     };
 
-    audio.addEventListener("timeupdate", () => {
-        timeNowEl.sv(audio.currentTime);
-        processNowEl.sv(audio.currentTime);
-    });
-
-    controlsEl.add([view("y").add([processEl, view("x").add([timeNowEl, spacer(), timeTotalEl])]), playBtn]);
+    controlsEl.add([processEl(audio), playBtn]);
     // todo 音量调节
     // todo loop
     // todo 音乐播放列表
@@ -214,6 +164,63 @@ async function renderAudio(filePath: string) {
     } catch (error) {
         console.error("Error parsing metadata:", error);
     }
+}
+
+function processEl(media: HTMLMediaElement) {
+    function timeTrans(t: number) {
+        const nt = Math.round(t);
+        const h = Math.floor(nt / 60 / 60);
+        const m = Math.floor((nt - h * 60 * 60) / 60);
+        const s = nt % 60;
+        const base = `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+        if (h === 0) {
+            return base;
+        }
+        return `${h}:${base}`;
+    }
+
+    const timeNowEl = txt()
+        .bindSet((t: number, el) => {
+            el.innerText = timeTrans(t);
+        })
+        .sv(0);
+    const timeTotalEl = txt()
+        .bindSet((t: number, el) => {
+            el.innerText = timeTrans(t);
+        })
+        .sv(0);
+    const processEl = view("x").style({ width: "240px", height: "2px", backgroundColor: "#ddd" });
+    const processNowEl = view("x")
+        .style({ width: "0%", height: "100%", backgroundColor: "#000" })
+        .bindSet((t: number, el) => {
+            el.style.width = `${(t / media.duration) * 100}%`;
+        })
+        .addInto(processEl);
+    trackPoint(processEl, {
+        start: (e) => {
+            return { x: e.offsetX, y: e.offsetY, data: processNowEl.el.offsetWidth };
+        },
+        ing: (p, _e, { startData }) => {
+            processNowEl.style({ width: `${(p.x / startData) * 100}%` });
+            return p.x / startData;
+        },
+        end: (_e, { ingData }) => {
+            const time = media.duration * ingData;
+            media.currentTime = time;
+            timeNowEl.sv(time);
+        },
+    });
+
+    media.addEventListener("loadedmetadata", () => {
+        timeTotalEl.sv(media.duration);
+    });
+
+    media.addEventListener("timeupdate", () => {
+        timeNowEl.sv(media.currentTime);
+        processNowEl.sv(media.currentTime);
+    });
+
+    return view("y").add([processEl, view("x").add([timeNowEl, spacer(), timeTotalEl])]);
 }
 
 function showLyric(el: ElType<HTMLElement>, lyrics: string, audio: HTMLAudioElement) {
