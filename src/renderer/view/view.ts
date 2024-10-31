@@ -81,7 +81,7 @@ async function renderAudio(filePath: string) {
     nameEl2.add(" - ");
     const albumEl = txt().addInto(nameEl2);
 
-    const controlsEl = view("y").addInto(left);
+    const controlsEl = view("y").style({ alignItems: "center" }).addInto(left);
 
     function timeTrans(t: number) {
         const nt = Math.round(t);
@@ -161,12 +161,7 @@ async function renderAudio(filePath: string) {
         processNowEl.sv(audio.currentTime);
     });
 
-    controlsEl.add([
-        view("y")
-            .style({ alignItems: "center" })
-            .add([processEl, view("x").add([timeNowEl, spacer(), timeTotalEl])]),
-        playBtn,
-    ]);
+    controlsEl.add([view("y").add([processEl, view("x").add([timeNowEl, spacer(), timeTotalEl])]), playBtn]);
     // todo 音量调节
     // todo loop
     // todo 音乐播放列表
