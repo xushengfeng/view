@@ -42,6 +42,8 @@ function mainRenderer(filePath: string) {
     if (filePath.match(/\.mp4$/i) || filePath.match(/\.mov$/i) || filePath.match(/\.avi$/i)) {
         renderVideo(filePath);
     }
+    // todo book
+    // todo 3d
 }
 
 function renderTxt(filePath: string) {
