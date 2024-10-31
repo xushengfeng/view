@@ -1,11 +1,18 @@
 const fs = require("node:fs") as typeof import("fs");
 const path = require("node:path") as typeof import("path");
 
-import { addClass, check, type ElType, image, label, p, txt, view } from "dkh-ui";
+import { addClass, check, type ElType, image, label, p, pureStyle, spacer, trackPoint, txt, view } from "dkh-ui";
+
+import { getImgUrl } from "../root/root";
 
 // import { loadMusicMetadata } from 'music-metadata/lib/core';
 // const { loadMusicMetadata } = require("music-metadata");
 import { parseBuffer } from "music-metadata";
+
+// @auto-path:../assets/icons/$.svg
+function icon(src: string) {
+    return image(getImgUrl(`${src}.svg`), "icon").class("icon");
+}
 
 const main = view().addInto();
 
@@ -60,9 +67,111 @@ function renderPhoto(filePath: string) {
 
 async function renderAudio(filePath: string) {
     const audio = new Audio(`file://${filePath}`);
-    audio.controls = true;
     main.add(audio);
-    // todo 控件
+
+    const music = view("x").style({ justifyContent: "space-evenly" }).addInto(main); // todo < 320 * 2 : y
+    const left = view("y")
+        .addInto(music)
+        .style({ minWidth: "320px", height: "100vh", alignItems: "center", justifyContent: "center" });
+    const pictureEl = view().style({ width: "240px", height: "240px" }).addInto(left);
+    const nameEl = txt().addInto(left);
+    const nameEl2 = txt().addInto(left);
+    const artistEl = txt().addInto(nameEl2);
+    nameEl2.add(" - ");
+    const albumEl = txt().addInto(nameEl2);
+
+    const controlsEl = view("y").addInto(left);
+
+    function timeTrans(t: number) {
+        const nt = Math.round(t);
+        const h = Math.floor(nt / 60 / 60);
+        const m = Math.floor((nt - h * 60 * 60) / 60);
+        const s = nt % 60;
+        const base = `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+        if (h === 0) {
+            return base;
+        }
+        return `${h}:${base}`;
+    }
+
+    const timeNowEl = txt()
+        .bindSet((t: number, el) => {
+            el.innerText = timeTrans(t);
+        })
+        .sv(0);
+    const timeTotalEl = txt()
+        .bindSet((t: number, el) => {
+            el.innerText = timeTrans(t);
+        })
+        .sv(0);
+    const processEl = view("x").style({ width: "240px", height: "2px", backgroundColor: "#ddd" });
+    const processNowEl = view("x")
+        .style({ width: "0%", height: "100%", backgroundColor: "#000" })
+        .bindSet((t: number, el) => {
+            el.style.width = `${(t / audio.duration) * 100}%`;
+        })
+        .addInto(processEl);
+    trackPoint(processEl, {
+        start: (e) => {
+            return { x: e.offsetX, y: e.offsetY, data: processNowEl.el.offsetWidth };
+        },
+        ing: (p, _e, { startData }) => {
+            processNowEl.style({ width: `${(p.x / startData) * 100}%` });
+            return p.x / startData;
+        },
+        end: (_e, { ingData }) => {
+            const time = audio.duration * ingData;
+            audio.currentTime = time;
+            timeNowEl.sv(time);
+        },
+    });
+
+    const playBtn = check("p", [
+        icon("pause").style({ width: "24px" }) /* playing */,
+        icon("recume").style({ width: "24px" }),
+    ])
+        .on("change", () => {
+            if (playBtn.gv) {
+                audio.play();
+            } else {
+                audio.pause();
+            }
+        })
+        .sv(false);
+
+    audio.onloadedmetadata = () => {
+        timeTotalEl.sv(audio.duration);
+        audio.play();
+        playBtn.sv(true);
+    };
+
+    audio.addEventListener("timeupdate", () => {
+        timeNowEl.sv(audio.currentTime);
+        processNowEl.sv(audio.currentTime);
+    });
+
+    controlsEl.add([view("y").add([processEl, view("x").add([timeNowEl, spacer(), timeTotalEl])]), playBtn]);
+    // todo 音量调节
+    // todo loop
+    // todo 音乐播放列表
+
+    const lyricEl = view("y")
+        .addInto(music)
+        .style({ minWidth: "320px", height: "100vh", overflow: "auto", scrollBehavior: "smooth" })
+        .class(
+            addClass(
+                {},
+                {
+                    "&>*": {
+                        padding: "8px",
+                        borderRadius: "8px",
+                    },
+                    "&::-webkit-scrollbar": {
+                        display: "none",
+                    },
+                },
+            ),
+        );
 
     const buffer = fs.readFileSync(filePath);
 
@@ -71,29 +180,25 @@ async function renderAudio(filePath: string) {
         const metadata = await parseBuffer(buffer);
         console.log(metadata);
 
-        if (metadata.common.title) {
-            main.add(txt(metadata.common.title));
+        nameEl.sv(metadata.common.title ?? path.basename(filePath, path.extname(filePath)));
+
+        artistEl.sv(metadata.common.artists?.join("、") ?? "未知歌手");
+
+        albumEl.sv(metadata.common.album ?? "未知专辑");
+
+        const cover = metadata.common.picture?.[0];
+        if (cover) {
+            const base64 = Buffer.from(cover.data).toString("base64");
+            pictureEl.add(image(`data:${cover.format};base64,${base64}`, "封面").style({ width: "100%" }));
         }
 
-        if (metadata.common.artists) {
-            main.add(txt(metadata.common.artists.join("、")));
-        }
-
-        if (metadata.common.album) {
-            main.add(txt(metadata.common.album));
-        }
-
-        if (metadata.common.picture?.[0]) {
-            const base64 = Buffer.from(metadata.common.picture[0].data).toString("base64");
-            main.add(
-                image(`data:${metadata.common.picture[0].format};base64,${base64}`, "封面").style({ width: "240px" }),
-            );
-        }
-
-        if (metadata.common.lyrics) {
-            const lyrics = metadata.common.lyrics[0].text;
-            const lyricEl = view().addInto(main);
+        const lyrics = metadata.common.lyrics?.[0].text;
+        if (lyrics) {
             showLyric(lyricEl, lyrics, audio);
+        } else {
+            // todo 读取文件
+            // else
+            lyricEl.style({ display: "none" });
         }
     } catch (error) {
         console.error("Error parsing metadata:", error.message);
@@ -114,9 +219,15 @@ function showLyric(el: ElType<HTMLElement>, lyrics: string, audio: HTMLAudioElem
         l.push({ time: mainT * 1000 + Number(nt[1]), text: text.trim() });
     }
 
-    el.add(l.map((v) => p(v.text)));
+    el.add(
+        l.map((v) =>
+            p(v.text).on("click", () => {
+                audio.currentTime = v.time / 1000;
+            }),
+        ),
+    );
     const nowLyricClass = addClass({ background: "#ddd" }, {});
-    audio.ontimeupdate = () => {
+    audio.addEventListener("timeupdate", () => {
         const t = audio.currentTime * 1000;
         const lyric = l.findLastIndex((x) => x.time <= t);
         const oldEl = el.query(`.${nowLyricClass}`)?.el;
@@ -124,8 +235,9 @@ function showLyric(el: ElType<HTMLElement>, lyrics: string, audio: HTMLAudioElem
         if (oldEl !== newEl) {
             oldEl?.classList.remove(nowLyricClass);
             newEl?.classList.add(nowLyricClass);
+            el.el.scrollTop = newEl?.offsetTop - (el.el.offsetHeight - newEl.offsetHeight) / 2;
         }
-    };
+    });
 }
 
 function renderVideo(filePath: string) {
@@ -136,6 +248,8 @@ function renderVideo(filePath: string) {
     // todo 高级控件
     // todo 字幕
 }
+
+pureStyle();
 
 const x = new URLSearchParams(location.search);
 if (x.get("path")) {
