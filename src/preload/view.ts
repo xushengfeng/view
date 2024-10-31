@@ -36,7 +36,7 @@ let status_bar_t1: NodeJS.Timeout;
 
 function get_opensearch() {
     const l = {};
-    document.querySelectorAll('link[type="application/opensearchdescription+xml"').forEach((el) => {
+    for (const el of document.querySelectorAll('link[type="application/opensearchdescription+xml"')) {
         const href = el.getAttribute("href");
         if (href) {
             fetch(href)
@@ -44,27 +44,28 @@ function get_opensearch() {
                 .then((text) => {
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(text, "application/xml");
-                    const name = doc.querySelector("ShortName").textContent;
+                    const name = doc.querySelector("ShortName")?.textContent;
+                    if (!name) return;
                     l[name] = {
-                        des: doc.querySelector("Description").textContent,
-                        img: doc.querySelector("Image").textContent,
+                        des: doc.querySelector("Description")?.textContent,
+                        img: doc.querySelector("Image")?.textContent,
                         url: "",
                         sug: "",
                         from: "opensearch",
                     } as setting["searchEngine"]["engine"][""];
-                    doc.querySelectorAll("Url").forEach((el) => {
+                    for (const el of doc.querySelectorAll("Url")) {
                         const type = el.getAttribute("type");
                         if (type === "text/html") {
-                            l[name].url = el.getAttribute("template").replaceAll("{searchTerms}", "%s");
+                            l[name].url = el.getAttribute("template")?.replaceAll("{searchTerms}", "%s");
                         }
                         if (type === "application/x-suggestions+json" || type === "application/json") {
-                            l[name].sug = el.getAttribute("template").replaceAll("{searchTerms}", "%s");
+                            l[name].sug = el.getAttribute("template")?.replaceAll("{searchTerms}", "%s");
                         }
-                    });
+                    }
                     ipcRenderer.send("view", "opensearch", l);
                 });
         }
-    });
+    }
 }
 
 ipcRenderer.on("view_event", (_e, type, arg) => {
@@ -95,14 +96,14 @@ window.addEventListener("message", (m) => {
 });
 
 function inputx() {
-    document.querySelectorAll("iframe").forEach((el) => {
-        el.contentWindow.postMessage(el.getBoundingClientRect(), "*");
-    });
-    const forml = [];
+    for (const el of document.querySelectorAll("iframe")) {
+        el.contentWindow?.postMessage(el.getBoundingClientRect(), "*");
+    }
+    const forml: HTMLInputElement[] = [];
     // 密码
-    document.querySelectorAll("from").forEach((fel) => {
+    for (const fel of document.querySelectorAll("form")) {
         const l = { username: "", passwd: "" };
-        fel.querySelectorAll("input").forEach((iel) => {
+        for (const iel of fel.querySelectorAll("input")) {
             iel.addEventListener("blur", () => {
                 if (["email", "tel", "text", ""].includes(iel.type.toLowerCase()) && iel.value) {
                     l.username = iel.value;
@@ -123,12 +124,12 @@ function inputx() {
                 });
             });
             forml.push(iel);
-        });
-    });
+        }
+    }
     console.log(forml);
 
     // 自动填充和list
-    document.querySelectorAll("input").forEach((iel) => {
+    for (const iel of document.querySelectorAll("input")) {
         if (!forml.includes(iel)) {
             console.log(iel);
 
@@ -137,10 +138,10 @@ function inputx() {
                 r.x += prect.x;
                 r.y += prect.y;
                 if (iel.list) {
-                    const list = [];
-                    iel.list.querySelectorAll("option").forEach((op) => {
-                        list.push(op.value);
-                    });
+                    const list: string[] = [];
+                    for (const op of iel.list.querySelectorAll("option")) {
+                        list.push(op.textContent ?? "");
+                    }
                     ipcRenderer.send("view", "input", {
                         action: "focus",
                         position: r.toJSON(),
@@ -162,5 +163,5 @@ function inputx() {
                 ipcRenderer.send("view", "input", { action: "blur" });
             });
         }
-    });
+    }
 }
