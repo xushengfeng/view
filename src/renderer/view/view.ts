@@ -139,6 +139,16 @@ async function renderAudio(filePath: string) {
         })
         .sv(false);
 
+    audio.onplay = () => {
+        playBtn.sv(true);
+    };
+    audio.onpause = () => {
+        playBtn.sv(false);
+    };
+    audio.onended = () => {
+        playBtn.sv(false);
+    };
+
     audio.onloadedmetadata = () => {
         timeTotalEl.sv(audio.duration);
         audio.play();
@@ -150,7 +160,12 @@ async function renderAudio(filePath: string) {
         processNowEl.sv(audio.currentTime);
     });
 
-    controlsEl.add([view("y").add([processEl, view("x").add([timeNowEl, spacer(), timeTotalEl])]), playBtn]);
+    controlsEl.add([
+        view("y")
+            .style({ alignItems: "center" })
+            .add([processEl, view("x").add([timeNowEl, spacer(), timeTotalEl])]),
+        playBtn,
+    ]);
     // todo 音量调节
     // todo loop
     // todo 音乐播放列表
