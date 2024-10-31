@@ -20,6 +20,7 @@ function mainRenderer(filePath: string) {
     if (filePath.match(/\.(html|htm)$/i)) {
         location.href = filePath;
     }
+    document.title = path.basename(filePath);
     if (filePath.match(/\.txt$/i)) {
         renderTxt(filePath);
     } else if (filePath.match(/\.md$/i)) {
