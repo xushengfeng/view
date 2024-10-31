@@ -91,7 +91,7 @@ async function renderAudio(filePath: string) {
         audio.play();
     };
 
-    controlsEl.add([processEl(audio), playBtn]);
+    controlsEl.add([processEl(audio).style({ width: "320px" }), playBtn]);
     // todo 音量调节
     // todo loop
     // todo 音乐播放列表
@@ -169,9 +169,18 @@ function processEl(media: HTMLMediaElement) {
             el.innerText = timeTrans(t);
         })
         .sv(0);
-    const processEl = view("x").style({ width: "240px", height: "2px", backgroundColor: "#ddd" });
+    const processEl = view("x")
+        .style({ width: "100%", transition: "0.4s", backgroundColor: "#ddd", borderRadius: "8px" })
+        .class(
+            addClass(
+                {
+                    height: "2px",
+                },
+                {},
+            ),
+        );
     const processNowEl = view("x")
-        .style({ width: "0%", height: "100%", backgroundColor: "#000" })
+        .style({ width: "0%", height: "100%", backgroundColor: "#000", borderRadius: "8px", overflow: "hidden" })
         .bindSet((t: number, el) => {
             el.style.width = `${(t / media.duration) * 100}%`;
         })
@@ -200,7 +209,22 @@ function processEl(media: HTMLMediaElement) {
         processNowEl.sv(media.currentTime);
     });
 
-    return view("y").add([processEl, view("x").add([timeNowEl, spacer(), timeTotalEl])]);
+    return view("y").add([
+        view("y")
+            .style({ justifyContent: "center", height: "6px" })
+            .class(
+                addClass(
+                    {},
+                    {
+                        "&:hover>div": {
+                            height: "6px",
+                        },
+                    },
+                ),
+            )
+            .add(processEl),
+        view("x").add([timeNowEl, spacer(), timeTotalEl]),
+    ]);
 }
 
 function playButton(media: HTMLMediaElement) {
@@ -274,8 +298,8 @@ function renderVideo(filePath: string) {
     const vControlsPEl = view().style({ position: "absolute", bottom: "0", width: "100%" }).addInto(main);
     const vControlsEl = view("y")
         .style({
-            alignContent: "center",
-            width: "480px",
+            alignItems: "center",
+            width: "min-content",
             padding: "16px",
             borderRadius: "16px",
             margin: "0 auto 16px",
@@ -294,7 +318,7 @@ function renderVideo(filePath: string) {
 
     vEl.add(pack(video).style({ width: "100%", height: "100%", objectFit: "contain" }));
     vControlsPEl.add(vControlsEl);
-    vControlsEl.add([processEl(video), playBtn]).style({ alignItems: "center" });
+    vControlsEl.add([processEl(video).style({ width: "320px" }), playBtn]);
     // todo 字幕
 }
 
