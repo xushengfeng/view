@@ -1,12 +1,11 @@
 const fs = require("node:fs") as typeof import("fs");
 const path = require("node:path") as typeof import("path");
+const { shell } = require("electron") as typeof import("electron");
 
 import { addClass, check, type ElType, image, label, p, pack, pureStyle, spacer, trackPoint, txt, view } from "dkh-ui";
 
 import { getImgUrl } from "../root/root";
 
-// import { loadMusicMetadata } from 'music-metadata/lib/core';
-// const { loadMusicMetadata } = require("music-metadata");
 import { parseBuffer } from "music-metadata";
 
 // @auto-path:../assets/icons/$.svg
@@ -23,8 +22,11 @@ function mainRenderer(filePath: string) {
     document.title = path.basename(filePath);
     if (filePath.match(/\.txt$/i)) {
         renderTxt(filePath);
-    } else if (filePath.match(/\.md$/i)) {
+        return;
+    }
+    if (filePath.match(/\.md$/i)) {
         renderMd(filePath);
+        return;
     }
     if (
         filePath.match(/\.jpg$/i) ||
@@ -35,15 +37,20 @@ function mainRenderer(filePath: string) {
         filePath.match(/\.webp$/i)
     ) {
         renderPhoto(filePath);
+        return;
     }
     if (filePath.match(/\.mp3$/i) || filePath.match(/\.wav$/i) || filePath.match(/\.flac$/i)) {
         renderAudio(filePath);
+        return;
     }
     if (filePath.match(/\.mp4$/i) || filePath.match(/\.mov$/i) || filePath.match(/\.avi$/i)) {
         renderVideo(filePath);
+        return;
     }
     // todo book
     // todo 3d
+
+    shell.openPath(filePath);
 }
 
 function renderTxt(filePath: string) {
