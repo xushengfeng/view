@@ -338,8 +338,13 @@ function setUrl(url: string) {
     const x = url.split(":").slice(1).join(":");
     if (protocol && x) {
         urlEl.add(protocol.slice(0, 1)); // todo icon
-        const fakeUrl = `https://${x.replace(/^\/\//, "")}`;
-        const detail = new URL(fakeUrl);
+        let detail: URL;
+        if (protocol === "file") {
+            detail = new URL(x);
+        } else {
+            const fakeUrl = `https://${x.replace(/^\/\//, "")}`;
+            detail = new URL(fakeUrl);
+        }
 
         console.log(detail);
 
