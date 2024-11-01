@@ -523,12 +523,9 @@ function to_search_url(str: string) {
 function search(str: string) {
     searchListEl.clear();
 
-    addSearchItem({ url: to_more_url(toUrl(str)), text: `访问 ${toUrl(str)}`, icon: browser_svg });
+    const u = str.trim();
+    if (isUrlLike(u)) addSearchItem({ url: to_more_url(toUrl(u)), text: `访问 ${toUrl(u)}`, icon: browser_svg });
     addSearchItem({ url: to_search_url(str), text: `搜索 ${str}`, icon: search_svg });
-
-    if (isUrlLike(str)) {
-        console.log("isUrlLike", str);
-    }
 
     // todo enter
     // todo 上下方向键导航
