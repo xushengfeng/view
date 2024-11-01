@@ -155,7 +155,9 @@ url_el.on("pointerdown", (e) => {
         })
         .on("blur", () => {
             set_url(url_i.gv);
-            setChromeSize("hide");
+            if (activeViews.length > 0) {
+                setChromeSize("hide");
+            }
         });
 });
 
