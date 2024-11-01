@@ -3,6 +3,7 @@
 import type { cardData, syncView } from "../../types";
 
 const { ipcRenderer, clipboard } = require("electron") as typeof import("electron");
+import * as path from "node:path";
 import { addClass, button, ele, type ElType, image, input, pureStyle, txt, view } from "dkh-ui";
 import store from "../../../lib/store/renderStore";
 
@@ -452,10 +453,20 @@ function to_url(str: string) {
         return `https${str}`;
     }
     if (str.match(/^[a-z]+:\/\//i)) {
+        if (str.startsWith("file://") && process.platform === "win32") {
+            return str.replace(/\\/g, "/"); // todo 更好的处理？
+        }
         return str;
     }
     if (str.match(/^[0-9a-fA-F]{40}$/)) {
         return `magnet:?xt=urn:btih:${str}`;
+    }
+    if (process.platform === "win32" && str.match(/^[a-zA-Z]:/)) {
+        const p = str.replace(/\\/g, "/");
+        return `file://${path.normalize(p)}`;
+    }
+    if (str.startsWith("/")) {
+        return `file://${path.normalize(str)}`;
     }
     return `https://${str}`;
 }
