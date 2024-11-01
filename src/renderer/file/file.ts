@@ -11,8 +11,6 @@ if (isWindow) {
     winattr = require("winattr");
 }
 
-let hidden = true;
-
 import Seven from "node-7z";
 
 import copy_svg from "../assets/icons/copy.svg";
@@ -27,17 +25,8 @@ import up_svg from "../assets/icons/up.svg";
 import eye_svg from "../assets/icons/eye.svg";
 import reload_svg from "../assets/icons/reload.svg";
 
-pureStyle();
+let hidden = true;
 
-const opraEl = view().attr({ id: "opra" }).addInto();
-const contentEl = view().attr({ id: "content" }).addInto();
-
-const x = new URLSearchParams(location.search);
-let nowPath = "/";
-if (x.get("path")) {
-    nowPath = x.get("path") as string;
-    render(entry(nowPath));
-}
 type file = {
     name: string;
     isDirectory: boolean;
@@ -48,6 +37,50 @@ type file = {
     birthtime: Date;
     isHidden: boolean;
 };
+
+let nowPath = "/";
+
+let select: string[] = [];
+let shiftSelect: string[] = [];
+
+let isCut = false;
+
+const opra = {
+    dotdot: { fun: dotdot, icon: up_svg },
+    reflash: { fun: reflash, icon: reload_svg },
+    copy: { fun: copy, icon: copy_svg },
+    cut: { fun: cut, icon: cut_svg },
+    paste: { fun: paste, icon: paste_svg },
+    newDir: { fun: newDir, icon: folder_svg },
+    rename: { fun: rename, icon: rename_svg },
+    moveToBin: { fun: moveToBin, icon: delete_svg },
+    delete: { fun: rm, icon: delete_svg },
+    zip: { fun: zip, icon: zip_svg },
+    unzip: { fun: unzip, icon: unzip_svg },
+    hidden: { fun: switchHidden, icon: eye_svg },
+};
+
+const opraList: (keyof typeof opra)[] = [
+    "dotdot",
+    "reflash",
+    "copy",
+    "cut",
+    "paste",
+    "newDir",
+    "rename",
+    "moveToBin",
+    "zip",
+    "unzip",
+    "delete",
+    "hidden",
+];
+const menuList: (keyof typeof opra)[] = ["copy", "cut", "paste", "newDir", "rename", "moveToBin", "zip", "unzip"];
+
+const opraEl = view().attr({ id: "opra" }).addInto();
+const contentEl = view().attr({ id: "content" }).addInto();
+
+pureStyle();
+
 function entry(directory: string) {
     const entries = fs.readdirSync(directory, { withFileTypes: true });
 
@@ -90,9 +123,6 @@ function sort(l: file[]) {
         return a.name.localeCompare(b.name, navigator.language, { numeric: true });
     });
 }
-
-let select: string[] = [];
-let shiftSelect: string[] = [];
 
 function render(directory: file[]) {
     contentEl.clear();
@@ -203,8 +233,6 @@ function copy() {
     fileList = fileList.map((i) => `file://${path.join(nowPath, i)}`);
     clipboard.writeText(fileList.join("\n")); // TODO 系统级api
 }
-
-let isCut = false;
 
 function cut() {
     isCut = true;
@@ -341,21 +369,6 @@ function switchHidden(h: boolean) {
     selectEl();
 }
 
-const opra = {
-    dotdot: { fun: dotdot, icon: up_svg },
-    reflash: { fun: reflash, icon: reload_svg },
-    copy: { fun: copy, icon: copy_svg },
-    cut: { fun: cut, icon: cut_svg },
-    paste: { fun: paste, icon: paste_svg },
-    newDir: { fun: newDir, icon: folder_svg },
-    rename: { fun: rename, icon: rename_svg },
-    moveToBin: { fun: moveToBin, icon: delete_svg },
-    delete: { fun: rm, icon: delete_svg },
-    zip: { fun: zip, icon: zip_svg },
-    unzip: { fun: unzip, icon: unzip_svg },
-    hidden: { fun: switchHidden, icon: eye_svg },
-};
-
 function createOpraEl(type: keyof typeof opra) {
     const opraEl = view().class("opra");
     opraEl.el.innerHTML = `<img src="${opra[type].icon}" alt="">`;
@@ -375,23 +388,14 @@ function createOpraEl(type: keyof typeof opra) {
     return opraEl;
 }
 
-const opraList: (keyof typeof opra)[] = [
-    "dotdot",
-    "reflash",
-    "copy",
-    "cut",
-    "paste",
-    "newDir",
-    "rename",
-    "moveToBin",
-    "zip",
-    "unzip",
-    "delete",
-    "hidden",
-];
-const menuList: (keyof typeof opra)[] = ["copy", "cut", "paste", "newDir", "rename", "moveToBin", "zip", "unzip"];
-
 opraEl.add(opraList.map((i) => createOpraEl(i)));
 
 // todo ftp
 // todo webdav
+
+const x = new URLSearchParams(location.search);
+
+if (x.get("path")) {
+    nowPath = x.get("path") as string;
+    render(entry(nowPath));
+}
