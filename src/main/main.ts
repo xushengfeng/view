@@ -19,7 +19,7 @@ import { spawn, exec } from "node:child_process";
 import * as fs from "node:fs";
 import { t, lan, getLans, matchFitLan } from "../../lib/translate/translate";
 import url from "node:url";
-import type { setting, DownloadItem, cardData, syncView } from "../types";
+import type { setting, DownloadItem, cardData, syncView, treeItem } from "../types";
 const Keyv = require("keyv").default as typeof import("keyv").default;
 const KeyvSqlite = require("@keyv/sqlite").default as typeof import("@keyv/sqlite").default;
 
@@ -429,15 +429,6 @@ ipcMain.on("win", (e, pid, type) => {
     }
 });
 
-type tree = {
-    [id in view_id | "0"]: {
-        url: string;
-        title: string;
-        logo: string;
-        next?: view_id[];
-    };
-};
-
 const keyvSqlite = new KeyvSqlite(`sqlite://${app.getPath("userData")}/text.sqlite`);
 const treeTextKeyv = new Keyv({ store: keyvSqlite });
 const keyvSqlite1 = new KeyvSqlite(`sqlite://${app.getPath("userData")}/tree.sqlite`);
@@ -464,7 +455,7 @@ const treeStore = {
         return treeKeyv.set(String(id), data);
     },
     get: (id: view_id) => {
-        return treeKeyv.get(String(id)) as Promise<tree[0]>;
+        return treeKeyv.get(String(id)) as Promise<treeItem>;
     },
 };
 const nameStore = {

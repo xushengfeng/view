@@ -49,6 +49,13 @@ export interface setting {
     };
 }
 
+type treeItem = {
+    url: string;
+    title: string;
+    logo: string;
+    next?: number[];
+};
+
 type syncView = "add" | "close" | "update" | "move" | "restart";
 
 export interface cardData {

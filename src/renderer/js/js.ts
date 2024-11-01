@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type { cardData, syncView } from "../../types";
+import type { cardData, syncView, treeItem } from "../../types";
 
 const { ipcRenderer, clipboard } = require("electron") as typeof import("electron");
 import * as path from "node:path";
@@ -50,7 +50,7 @@ const treeX = {
         const view = ipcRenderer.sendSync("tab_view", "get", id);
         console.log(id, JSON.stringify(view));
 
-        return view as tree[0];
+        return view as treeItem;
     },
     reload: (id: number) => {
         ipcRenderer.send("tab_view", "reload", id);
@@ -73,15 +73,6 @@ const treeX = {
     inspect: (id: number, x: number, y: number) => {
         ipcRenderer.send("tab_view", "inspect", id, { x, y });
     },
-};
-
-type tree = {
-    [id: number]: {
-        url: string;
-        title: string;
-        logo: string;
-        next?: number[];
-    };
 };
 
 const site_p_list: Map<string, string[]> = new Map();
