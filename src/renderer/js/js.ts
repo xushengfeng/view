@@ -10,6 +10,7 @@ const setting = store;
 
 import browser_svg from "../assets/icons/browser.svg";
 import search_svg from "../assets/icons/search.svg";
+import { add } from "node-7z";
 
 pureStyle();
 
@@ -120,7 +121,22 @@ const system_el = view().attr({ id: "system" });
 system_el.add([w_mini, w_max, w_close]);
 
 const buttons = view().attr({ id: "buttons" });
-const url_el = ele("span").attr({ id: "url" });
+const urlEl = view("x")
+    .style({
+        width: "400px",
+        gap: "8px",
+        minHeight: "1rem",
+        overflowX: "scroll",
+        // @ts-ignore
+        "-webkit-app-region": "no-drag",
+    })
+    .class(addClass({}, { "&::-webkit-scrollbar": { display: "none" } }))
+    .bindSet((url: string, el) => {
+        el.setAttribute("data-url", url);
+    })
+    .bindGet((el) => {
+        return el.getAttribute("data-url") ?? "";
+    });
 
 const b_reload = iconEl("reload").on("click", () => {
     treeX.reload(topestView);
@@ -134,17 +150,14 @@ const show_tree = iconEl("reload").on("click", () => {
 
 buttons.add([b_reload, show_tree]);
 
-view()
-    .add([buttons, view().attr({ id: "url_bar" }).add(url_el), system_el])
-    .addInto()
-    .attr({ id: "bar" });
+view().add([buttons, urlEl, system_el]).addInto().attr({ id: "bar" });
 
 const searchListEl = view().attr({ id: "search_list" }).addInto();
-url_el.on("pointerdown", (e) => {
+urlEl.on("contextmenu", (e) => {
     if ((e.target as HTMLElement).tagName === "INPUT") return;
     e.preventDefault();
-    const url_i = input().sv(url_el.el.innerText);
-    url_el.clear().add(url_i);
+    const url_i = input().sv(urlEl.gv).style({ width: "100%" });
+    urlEl.clear().add(url_i);
     url_i.el.setSelectionRange(0, url_i.gv.length);
     url_i.el.focus();
     setChromeSize("full");
@@ -154,7 +167,7 @@ url_el.on("pointerdown", (e) => {
             search(url_i.gv);
         })
         .on("blur", () => {
-            set_url(url_i.gv);
+            setUrl(url_i.gv);
             if (activeViews.length > 0) {
                 setChromeSize("hide");
             }
@@ -316,37 +329,116 @@ function setChromeSize(type: "normal" | "hide" | "full") {
     chrome_size = type;
 }
 
-function set_url(url: string) {
+function setUrl(url: string) {
     now_url = url;
-    try {
-        let x = new URL(url);
-        if (location.href.split("/").slice(0, -1).join("/") === x.href.split("/").slice(0, -1).join("/")) {
-            x = new URL(`view://${(x.pathname.split("/").at(-1) ?? "").replace(".html", "")}`);
-        }
-        const hurl = x.toString();
-        let ss = 0;
-        let se = hurl.length;
-        if (hurl.indexOf(".") !== -1) {
-            ss = hurl.indexOf(".") + 1;
+    urlEl.sv(url);
+
+    urlEl.clear();
+    const protocol = url.split(":")[0];
+    const x = url.split(":").slice(1).join(":");
+    if (protocol && x) {
+        urlEl.add(protocol.slice(0, 1)); // todo icon
+        const fakeUrl = `https://${x.replace(/^\/\//, "")}`;
+        const detail = new URL(fakeUrl);
+
+        console.log(detail);
+
+        const hClass = addClass({ fontSize: "0.8em", color: "#444" }, {});
+        const h = (x: string) => txt(x).class(hClass);
+
+        const v = (_h: string, v: string) => {
+            const x = view().add(h(_h)).style({ color: "#444", display: "inline-block" });
+            const value = txt(v);
+            const edit = input()
+                .sv(value.gv)
+                .style({ display: "none" })
+                .on("change", () => {
+                    value.sv(edit.gv);
+                    edit.style({ display: "none" });
+                    value.style({ display: "inline-block" });
+                });
+            x.add(
+                value.on("click", () => {
+                    edit.sv(value.gv);
+                    edit.style({ display: "inline-block" });
+                    value.style({ display: "none" });
+                }),
+            );
+            return x;
+        };
+
+        const domain = detail.hostname;
+        const domainEl = txt().style({ color: "#444" }).addInto(urlEl);
+        if (domain.split(".")?.length > 2) {
+            domainEl.add(
+                domain
+                    .split(".")
+                    .slice(0, -2)
+                    .flatMap((x) => [x, h(".")]),
+            );
+            domainEl.add(
+                txt()
+                    .add(
+                        domain
+                            .split(".")
+                            .slice(-2)
+                            .flatMap((x) => [x, h(".")])
+                            .slice(0, -1),
+                    )
+                    .style({ color: "#000" }),
+            );
         } else {
-            ss = hurl.indexOf("://") + 3;
+            domainEl.add(txt(domain).style({ color: "#000" }));
         }
-        for (let i = ss; i < hurl.length; i++) {
-            const element = hurl[i];
-            if (!element.match(/[a-zA-Z.]/)) {
-                se = i;
-            }
+
+        if (detail.port) {
+            urlEl.add(v(":", detail.port));
         }
-        const l0 = hurl.slice(0, ss);
-        const h = hurl.slice(ss, se);
-        const l1 = hurl.slice(se);
-        const m = txt();
-        m.sv(h);
-        url_el.clear().add([l0, m, l1]);
-    } catch (error) {
-        const m = txt();
-        m.sv(url);
-        url_el.clear().add(m);
+
+        if (detail.username) {
+            urlEl.add(v("@", detail.username));
+        }
+
+        if (detail.password) {
+            const hideP = "********";
+            const pEl = txt(hideP);
+            urlEl.add(
+                txt()
+                    .add([h(":"), pEl])
+                    .style({ color: "#444" })
+                    .on("pointerenter", () => {
+                        pEl.sv(detail.password);
+                    })
+                    .on("pointerleave", () => {
+                        pEl.sv(hideP);
+                    }),
+            );
+        }
+
+        if (detail.pathname) {
+            // todo windows?
+            const p = detail.pathname.split("/").filter((x) => x !== "");
+            const l = p.flatMap((x) => [txt(x).style({ color: "#444" }), h("/")]);
+            l.at(-1)?.style({ color: "#000" });
+            urlEl.add(view().add(l));
+        }
+
+        if (detail.hash) {
+            const hash = detail.hash.slice(1);
+            urlEl.add(v("#", hash));
+        }
+
+        if (detail.search) {
+            urlEl.add(
+                view().add([
+                    h("?").on("click", () => {
+                        // todo 弹窗列表修改
+                    }),
+                ]),
+            );
+        }
+    } else {
+        urlEl.add(url);
     }
 }
 
@@ -473,7 +565,7 @@ function cardUpdata(id: number, op: cardData) {
         if (op.url) {
             cardEl.url = op.url;
             if (id === topestView) {
-                set_url(op.url);
+                setUrl(op.url);
             }
         }
     }

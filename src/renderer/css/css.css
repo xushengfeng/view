@@ -58,47 +58,6 @@ body {
     height: 16px;
 }
 
-#url_bar {
-    -webkit-app-region: no-drag;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-}
-#url {
-    display: inline-block;
-    width: 400px;
-    color: var(--text-color1);
-    white-space: pre;
-    overflow: scroll;
-    height: 1rem;
-}
-
-#url::-webkit-scrollbar {
-    display: none;
-}
-
-#url > span {
-    color: var(--text-color);
-}
-#url > input {
-    appearance: none;
-    border: none;
-    width: 100%;
-    font-size: 1rem;
-}
-
-#url_bar > div {
-    position: relative;
-    width: 16px;
-    height: 16px;
-}
-
-#url_bar > div > .icon {
-    width: 16px;
-    height: 16px;
-}
-
 #search_list {
     -webkit-app-region: no-drag;
 }
