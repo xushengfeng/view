@@ -3,7 +3,7 @@ const path = require("node:path") as typeof import("path");
 
 const { clipboard, shell } = require("electron") as typeof import("electron");
 
-import { check, label, txt, view } from "dkh-ui";
+import { check, label, pureStyle, txt, view } from "dkh-ui";
 
 const isWindow = process.platform === "win32";
 let winattr: typeof import("winattr");
@@ -26,6 +26,8 @@ import folder_svg from "../assets/icons/file.svg";
 import up_svg from "../assets/icons/up.svg";
 import eye_svg from "../assets/icons/eye.svg";
 import reload_svg from "../assets/icons/reload.svg";
+
+pureStyle();
 
 const opraEl = view().attr({ id: "opra" }).addInto();
 const contentEl = view().attr({ id: "content" }).addInto();
