@@ -53,6 +53,7 @@ type treeItem = {
     url: string;
     title: string;
     logo: string;
+    parent: number;
     next?: number[];
 };
 

@@ -447,7 +447,7 @@ const tree_text_store = {
     },
 };
 const treeStore = {
-    set: async (id: view_id, key: "url" | "title" | "logo" | "next", value) => {
+    set: async (id: view_id, key: keyof treeItem, value) => {
         // todo: local storage
         // todo yjs sync
         const data = (await treeKeyv.get(String(id))) || {};
@@ -681,6 +681,7 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
         const l = (await treeStore.get(pid))?.next || [];
         l.push(view_id);
         treeStore.set(pid, "next", l);
+        treeStore.set(view_id, "parent", pid);
         sendViews("add", view_id, pid, undefined, undefined);
     }
 
