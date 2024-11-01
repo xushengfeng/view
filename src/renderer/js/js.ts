@@ -448,7 +448,38 @@ function setUrl(url: string) {
     }
 }
 
-function to_url(str: string) {
+function isUrlLike(str: string) {
+    if (str.match(/^:\/\//)) {
+        return ":";
+    }
+    if (str.match(/^[a-z]+:\/\//i)) {
+        return "p";
+    }
+    if (str.match(/^[0-9a-fA-F]{40}$/)) {
+        return "magnet";
+    }
+    if (process.platform === "win32" && str.match(/^[a-zA-Z]:/)) {
+        return "file";
+    }
+    if (str.startsWith("/")) {
+        return "file";
+    }
+    if (str.match(/.*\.[a-zA-Z]/)) {
+        return true;
+    }
+    if (
+        str.split(".").length === 4 &&
+        str
+            .split(".")
+            .map((i) => Number(i))
+            .every((i) => i >= 0 && i <= 255)
+    ) {
+        return "ip";
+    }
+    return false;
+}
+
+function toUrl(str: string) {
     if (str.match(/^:\/\//)) {
         return `https${str}`;
     }
@@ -492,8 +523,15 @@ function to_search_url(str: string) {
 function search(str: string) {
     searchListEl.clear();
 
-    addSearchItem({ url: to_more_url(to_url(str)), text: `访问 ${to_url(str)}`, icon: browser_svg });
+    addSearchItem({ url: to_more_url(toUrl(str)), text: `访问 ${toUrl(str)}`, icon: browser_svg });
     addSearchItem({ url: to_search_url(str), text: `搜索 ${str}`, icon: search_svg });
+
+    if (isUrlLike(str)) {
+        console.log("isUrlLike", str);
+    }
+
+    // todo enter
+    // todo 上下方向键导航
 
     fetch(suggestions_url.replace("%s", encodeURIComponent(str)))
         .then((j) => j.json())
