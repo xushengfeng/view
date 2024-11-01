@@ -1,3 +1,5 @@
+import { getImgUrl } from "../root/root";
+
 const fs = require("node:fs") as typeof import("fs");
 const path = require("node:path") as typeof import("path");
 
@@ -12,18 +14,6 @@ if (isWindow) {
 }
 
 import Seven from "node-7z";
-
-import copy_svg from "../assets/icons/copy.svg";
-import paste_svg from "../assets/icons/paste.svg";
-import cut_svg from "../assets/icons/cut.svg";
-import delete_svg from "../assets/icons/clear.svg";
-import rename_svg from "../assets/icons/rename.svg";
-import zip_svg from "../assets/icons/zip.svg";
-import unzip_svg from "../assets/icons/unzip.svg";
-import folder_svg from "../assets/icons/file.svg";
-import up_svg from "../assets/icons/up.svg";
-import eye_svg from "../assets/icons/eye.svg";
-import reload_svg from "../assets/icons/reload.svg";
 
 let hidden = true;
 
@@ -46,18 +36,18 @@ let shiftSelect: string[] = [];
 let isCut = false;
 
 const opra = {
-    dotdot: { fun: dotdot, icon: up_svg },
-    reflash: { fun: reflash, icon: reload_svg },
-    copy: { fun: copy, icon: copy_svg },
-    cut: { fun: cut, icon: cut_svg },
-    paste: { fun: paste, icon: paste_svg },
-    newDir: { fun: newDir, icon: folder_svg },
-    rename: { fun: rename, icon: rename_svg },
-    moveToBin: { fun: moveToBin, icon: delete_svg },
-    delete: { fun: rm, icon: delete_svg },
-    zip: { fun: zip, icon: zip_svg },
-    unzip: { fun: unzip, icon: unzip_svg },
-    hidden: { fun: switchHidden, icon: eye_svg },
+    dotdot: { fun: dotdot, icon: getImgUrl("up.svg") },
+    reflash: { fun: reflash, icon: getImgUrl("reload.svg") },
+    copy: { fun: copy, icon: getImgUrl("copy.svg") },
+    cut: { fun: cut, icon: getImgUrl("cut.svg") },
+    paste: { fun: paste, icon: getImgUrl("paste.svg") },
+    newDir: { fun: newDir, icon: getImgUrl("file.svg") },
+    rename: { fun: rename, icon: getImgUrl("rename.svg") },
+    moveToBin: { fun: moveToBin, icon: getImgUrl("clear.svg") },
+    delete: { fun: rm, icon: getImgUrl("clear.svg") },
+    zip: { fun: zip, icon: getImgUrl("zip.svg") },
+    unzip: { fun: unzip, icon: getImgUrl("unzip.svg") },
+    hidden: { fun: switchHidden, icon: getImgUrl("eye.svg") },
 };
 
 const opraList: (keyof typeof opra)[] = [
