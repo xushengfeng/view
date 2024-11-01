@@ -572,12 +572,15 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
         createView(window_name, event.url, view_id);
         event.preventDefault();
     });
-    wc.on("did-navigate", (_event, url) => {
-        sendViews("update", view_id, undefined, undefined, { url: url });
+    wc.on("did-navigate", (_event, _url) => {
+        if (_url !== real_url) sendViews("update", view_id, undefined, undefined, { url: _url });
+        else sendViews("update", view_id, undefined, undefined, { url: url });
     });
     wc.on("did-navigate-in-page", (_event, url, isMainFrame) => {
-        if (isMainFrame) treeStore.set(view_id, "url", url);
-        sendViews("update", view_id, undefined, undefined, { url: url });
+        if (isMainFrame) {
+            treeStore.set(view_id, "url", url);
+            sendViews("update", view_id, undefined, undefined, { url: url });
+        }
     });
     wc.on("did-start-loading", () => {
         sendViews("update", view_id, undefined, undefined, { loading: true });
