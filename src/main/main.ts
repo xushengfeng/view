@@ -92,7 +92,7 @@ function renderer_url(
 }
 
 /** 加载网页 */
-function renderer_path(window: BrowserWindow | Electron.WebContents, file_name: string, q?: Electron.LoadFileOptions) {
+function rendererPath(window: BrowserWindow | Electron.WebContents, file_name: string, q?: Electron.LoadFileOptions) {
     window.loadURL(renderer_url(file_name, q));
 }
 
@@ -361,7 +361,7 @@ async function createWin() {
             webSecurity: false,
         },
     });
-    renderer_path(chrome.webContents, "frame.html", {
+    rendererPath(chrome.webContents, "frame.html", {
         query: { id: window_name.toString(), userData: app.getPath("userData") },
     });
     if (dev) chrome.webContents.openDevTools();
@@ -487,7 +487,16 @@ function get_real_url(url: string) {
         return renderer_url(h);
     }
     if (url.startsWith("file://")) {
-        return renderer_url(url.replace("file://", "file.html?path="));
+        const p = url.replace(/^file:\/\//, "");
+        try {
+            const stat = fs.statSync(p);
+            if (stat.isFile()) {
+                return renderer_url(`view.html?path=${p}`);
+            }
+            return renderer_url(`file.html?path=${p}`);
+        } catch (error) {
+            // todo bg报错
+        }
     }
     return url;
     // TODO 改变location和new URL
@@ -517,7 +526,6 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
         },
     };
     if (url.startsWith("view://") || url.startsWith("file://")) {
-        // todo file安全性
         if (op.webPreferences) {
             op.webPreferences.nodeIntegration = true;
             op.webPreferences.contextIsolation = false;
@@ -534,6 +542,7 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
     winToViewl.get(window_name)?.push(view_id);
     const wc = search_view.webContents;
     const real_url = get_real_url(url);
+    console.log("url", url, real_url);
     wc.loadURL(real_url);
     const [w, h] = main_window.getContentSize();
     search_view.setBounds(get_size(w, h));
@@ -577,7 +586,7 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
         sendViews("update", view_id, undefined, undefined, { loading: false });
     });
     wc.on("did-fail-load", (_event, err_code, err_des) => {
-        renderer_path(wc, "browser_bg.html", {
+        rendererPath(wc, "browser_bg.html", {
             query: { type: "did-fail-load", err_code: String(err_code), err_des },
         });
         if (dev) wc.openDevTools();
@@ -613,20 +622,20 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
         }
     });
     wc.on("render-process-gone", () => {
-        renderer_path(wc, "browser_bg.html", {
+        rendererPath(wc, "browser_bg.html", {
             query: { type: "render-process-gone" },
         });
         if (dev) wc.openDevTools();
     });
     wc.on("unresponsive", () => {
-        renderer_path(wc, "browser_bg.html", { query: { type: "unresponsive" } });
+        rendererPath(wc, "browser_bg.html", { query: { type: "unresponsive" } });
         if (dev) wc.openDevTools();
     });
     wc.on("responsive", () => {
         wc.loadURL(url);
     });
     wc.on("certificate-error", () => {
-        renderer_path(wc, "browser_bg.html", {
+        rendererPath(wc, "browser_bg.html", {
             query: { type: "certificate-error" },
         });
         if (dev) wc.openDevTools();
@@ -787,7 +796,7 @@ ipcMain.on("view", (e, type, arg) => {
                     x: Math.floor(Math.min(main_window.getBounds().width - w, r.x)),
                     y: Math.floor(Math.min(main_window.getBounds().height - h, r.y)),
                 });
-                renderer_path(bv.webContents, "passwd.html");
+                rendererPath(bv.webContents, "passwd.html");
                 winToPasswd.set(main_window, bv);
                 bv.webContents.on("did-finish-load", () => {
                     bv.webContents.send("input", arg);

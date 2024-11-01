@@ -150,7 +150,7 @@ function render(directory: file[]) {
             } else {
                 // todo 打开文件 自定义
                 console.log(targetPath);
-                window.open(`view://view?path=${path.join(nowPath, targetPath)}`);
+                window.open(`file://${path.join(nowPath, targetPath)}`);
             }
         }
     };
