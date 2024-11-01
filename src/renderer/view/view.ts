@@ -292,7 +292,8 @@ function showLyric(el: ElType<HTMLElement>, lyrics: string, audio: HTMLAudioElem
         if (oldEl !== newEl) {
             oldEl?.classList.remove(nowLyricClass);
             newEl?.classList.add(nowLyricClass);
-            if (newEl) el.el.scrollTop = newEl?.offsetTop - (el.el.offsetHeight - newEl.offsetHeight) / 2;
+            if (newEl)
+                el.el.scrollTop = newEl?.offsetTop - el.el.offsetTop - (el.el.offsetHeight - newEl.offsetHeight) / 2;
         }
     });
 }
