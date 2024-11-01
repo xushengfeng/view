@@ -84,7 +84,7 @@ async function renderAudio(filePath: string) {
         .addInto(main);
     const left = view("y")
         .addInto(music)
-        .style({ minWidth: "320px", height: "100vh", alignItems: "center", justifyContent: "center" });
+        .style({ minWidth: "320px", margin: "16px 0", alignItems: "center", justifyContent: "center" });
     const pictureEl = view().style({ width: "240px", height: "240px" }).addInto(left);
     const nameEl = txt().addInto(left);
     const nameEl2 = txt().addInto(left);
