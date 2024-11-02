@@ -5,7 +5,7 @@ const path = require("node:path") as typeof import("path");
 
 const { clipboard, shell } = require("electron") as typeof import("electron");
 
-import { check, label, pureStyle, txt, view } from "dkh-ui";
+import { check, type ElType, label, pureStyle, txt, view } from "dkh-ui";
 
 const isWindow = process.platform === "win32";
 let winattr: typeof import("winattr");
@@ -14,8 +14,6 @@ if (isWindow) {
 }
 
 import Seven from "node-7z";
-
-let hidden = true;
 
 type file = {
     name: string;
@@ -28,356 +26,385 @@ type file = {
     isHidden: boolean;
 };
 
-let nowPath = "/";
+const fileViews: FileView[] = [];
 
-let select: string[] = [];
-let shiftSelect: string[] = [];
+let nowFileIndex = 0;
 
 let isCut = false;
-
-const opra = {
-    dotdot: { fun: dotdot, icon: getImgUrl("up.svg") },
-    reflash: { fun: reflash, icon: getImgUrl("reload.svg") },
-    copy: { fun: copy, icon: getImgUrl("copy.svg") },
-    cut: { fun: cut, icon: getImgUrl("cut.svg") },
-    paste: { fun: paste, icon: getImgUrl("paste.svg") },
-    newDir: { fun: newDir, icon: getImgUrl("file.svg") },
-    rename: { fun: rename, icon: getImgUrl("rename.svg") },
-    moveToBin: { fun: moveToBin, icon: getImgUrl("clear.svg") },
-    delete: { fun: rm, icon: getImgUrl("clear.svg") },
-    zip: { fun: zip, icon: getImgUrl("zip.svg") },
-    unzip: { fun: unzip, icon: getImgUrl("unzip.svg") },
-    hidden: { fun: switchHidden, icon: getImgUrl("eye.svg") },
-};
-
-const opraList: (keyof typeof opra)[] = [
-    "dotdot",
-    "reflash",
-    "copy",
-    "cut",
-    "paste",
-    "newDir",
-    "rename",
-    "moveToBin",
-    "zip",
-    "unzip",
-    "delete",
-    "hidden",
-];
-const menuList: (keyof typeof opra)[] = ["copy", "cut", "paste", "newDir", "rename", "moveToBin", "zip", "unzip"];
 
 const opraEl = view().attr({ id: "opra" }).addInto();
 const contentEl = view().attr({ id: "content" }).addInto();
 
 pureStyle();
 
-function entry(directory: string) {
-    const entries = fs.readdirSync(directory, { withFileTypes: true });
-
-    const l: file[] = [];
-
-    for (const entry of entries) {
-        const fullPath = path.join(directory, entry.name);
-
-        let stat: import("fs").Stats;
-        let lstat: import("fs").Stats;
-        let isHidden = false;
-        if (isWindow) {
-            winattr.get(fullPath, (error, data) => {
-                isHidden = error != null ? false : data.hidden;
-            });
-        } else {
-            isHidden = entry.name.startsWith(".");
-        }
-        try {
-            stat = fs.statSync(fullPath);
-            lstat = fs.lstatSync(fullPath);
-            l.push({
-                name: entry.name,
-                isDirectory: entry.isDirectory(),
-                atime: stat?.atime,
-                birthtime: stat?.birthtime,
-                mtime: stat?.mtime,
-                isSymbolicLink: lstat?.isSymbolicLink(), // lstat
-                size: stat?.size,
-                isHidden,
-            });
-        } catch (error) {}
-    }
-    return l;
-}
-
-function sort(l: file[]) {
-    return l.toSorted((a, b) => {
-        return a.name.localeCompare(b.name, navigator.language, { numeric: true });
-    });
-}
-
-function render(directory: file[]) {
-    contentEl.clear();
-
-    const s = sort(directory);
-    console.log(s);
-
-    // TODO 虚拟列表 虚拟阵列
-    for (const i of s) {
-        const iEl = view()
-            .add([i.isDirectory ? txt("📂") : txt("📄"), txt(i.name)])
-            .addInto(contentEl)
-            .data({
-                path: i.name,
-                dir: i.isDirectory ? "1" : "0",
-            });
-        if (i.isHidden) iEl.class("hidden");
-    }
-
-    contentEl.el.onclick = (e) => {
-        const eventPath = e.composedPath() as HTMLElement[];
-        let targetPath = ".";
-        let isDir = false;
-        for (const i of eventPath) {
-            if (i.getAttribute("data-path")) {
-                targetPath = i.getAttribute("data-path") as string;
-                isDir = i.getAttribute("data-dir") === "1";
-                break;
-            }
-        }
-        console.log(targetPath);
-        if (e.ctrlKey) {
-            for (const i of shiftSelect) {
-                if (!select.includes(i)) {
-                    select.push(i);
-                }
-            }
-            shiftSelect = [];
-            if (select.includes(targetPath)) {
-                select = select.filter((i) => i !== targetPath);
-            } else {
-                select.push(targetPath);
-            }
-            selectEl(select);
-        } else if (e.shiftKey) {
-            let start = s.findIndex((i) => i.name === targetPath);
-            let end = s.findIndex((i) => i.name === select.at(-1));
-            if (start > end) {
-                [start, end] = [end, start];
-            }
-            shiftSelect = s.slice(start, end + 1).map((i) => i.name);
-            selectEl(select.concat(shiftSelect));
-        } else {
-            if (isDir) {
-                nowPath = path.join(nowPath, targetPath);
-                render(entry(nowPath));
-            } else {
-                // todo 打开文件 自定义
-                console.log(targetPath);
-                window.open(`file://${path.join(nowPath, targetPath)}`);
-            }
-        }
-    };
-}
-function selectEl(l: string[] = select) {
-    console.log(l);
-    for (const i of contentEl.queryAll(".selected")) {
-        i.el.classList.remove("selected");
-    }
-    for (const i of l) {
-        contentEl.query(`[data-path="${i}"]`)?.class("selected");
-    }
-}
-
-// todo 拖拽
-// todo 矩形框选
-// todo 方向键
-// todo 快捷键
-
-function dotdot() {
-    // 根据nowpath获取上一级路径
-    const p = path.dirname(nowPath);
-    if (p === nowPath) {
-        return;
-    }
-    nowPath = p;
-    render(entry(nowPath));
-    select = [];
-    selectEl();
-}
-
-function getFullSelect() {
-    return select.map((i) => path.join(nowPath, i));
-}
-
 async function prompt(text: string) {
     return "";
 }
 
-function reflash() {
-    render(entry(nowPath));
-    selectEl();
-}
+class FileView {
+    renderEl: ElType<HTMLElement>;
+    nowPath = "/";
 
-function copy() {
-    let fileList = getFullSelect();
-    console.log(fileList);
-    fileList = fileList.map((i) => `file://${path.join(nowPath, i)}`);
-    clipboard.writeText(fileList.join("\n")); // TODO 系统级api
-}
+    opraEl: ElType<HTMLElement>;
 
-function cut() {
-    isCut = true;
-    copy();
-}
+    select: string[] = [];
+    shiftSelect: string[] = [];
 
-function paste() {
-    let fileList = clipboard.readText().split("\n");
-    fileList = fileList.map((i) => i.replace("file://", ""));
-    // todo 重名检测
-    if (isCut) {
-        for (const i of fileList) {
-            fs.renameSync(i, path.join(nowPath, i));
-        }
-        isCut = false;
-    } else {
-        for (const i of fileList) {
-            fs.copyFileSync(i, path.join(nowPath, i));
-        }
+    isHidden = true;
+
+    opra = {
+        dotdot: { fun: () => this.dotdot(), icon: getImgUrl("up.svg") },
+        reflash: { fun: () => this.reflash(), icon: getImgUrl("reload.svg") },
+        copy: { fun: () => this.copy(), icon: getImgUrl("copy.svg") },
+        cut: { fun: () => this.cut(), icon: getImgUrl("cut.svg") },
+        paste: { fun: () => this.paste(), icon: getImgUrl("paste.svg") },
+        newDir: { fun: () => this.newDir(), icon: getImgUrl("file.svg") },
+        rename: { fun: () => this.rename(), icon: getImgUrl("rename.svg") },
+        moveToBin: { fun: () => this.moveToBin(), icon: getImgUrl("clear.svg") },
+        delete: { fun: () => this.rm(), icon: getImgUrl("clear.svg") },
+        zip: { fun: () => this.zip(), icon: getImgUrl("zip.svg") },
+        unzip: { fun: () => this.unzip(), icon: getImgUrl("unzip.svg") },
+        hidden: { fun: (v: boolean) => this.hidden(v), v: this.isHidden, icon: getImgUrl("eye.svg") },
+    };
+
+    menuList: (keyof typeof this.opra)[] = ["copy", "cut", "paste", "newDir", "rename", "moveToBin", "zip", "unzip"];
+
+    constructor(el: ElType<HTMLElement>, opraEl: ElType<HTMLElement>) {
+        this.renderEl = el;
+        this.opraEl = opraEl;
     }
-    render(entry(nowPath));
-    select = structuredClone(fileList);
-    selectEl();
-}
+    #entry(directory: string) {
+        const entries = fs.readdirSync(directory, { withFileTypes: true });
 
-async function rename() {
-    if (select.length !== 1) return;
-    const name = await prompt("请输入新文件名");
-    // todo 重名检测
-    if (!name) return;
-    fs.renameSync(path.join(nowPath, select[0]), path.join(nowPath, name));
-    render(entry(nowPath));
-    select = [];
-    selectEl();
-}
+        const l: file[] = [];
 
-async function newDir() {
-    const name = await prompt("请输入文件夹名");
-    // todo 重名检测
-    if (!name) return;
-    fs.mkdirSync(path.join(nowPath, name));
-    if (select.length) {
-        for (const i of select) {
-            fs.renameSync(path.join(nowPath, i), path.join(nowPath, name, i));
-        }
-        select = [];
-    }
-    render(entry(nowPath));
-    selectEl();
-}
+        for (const entry of entries) {
+            const fullPath = path.join(directory, entry.name);
 
-function zip() {
-    const stream = Seven.add(path.basename(select[0]), getFullSelect(), { $progress: true });
-}
-
-function unzip() {
-    // 分卷识别
-    const files: string[] = [];
-    const fenjuan: string[] = [];
-    lx: for (const i of select) {
-        const p: [RegExp, string][] = [
-            [/\.\d{3}$/, ".001"],
-            [/\.part\d{2}\.rar$/, ".part01.rar"],
-            [/\.part\d{3}\.rar$/, ".part001.rar"],
-            [/\.z\d{2}/, ""],
-            [/\.r\d{2}/, ""],
-        ];
-        for (const pp of p) {
-            if (i.match(pp[0])) {
-                const basename = i.replace(pp[0], "");
-                if (!fenjuan.includes(basename)) {
-                    fenjuan.push(basename);
-                    if (pp[1]) files.push(pp[1]);
-                }
-                continue lx;
-            }
-        }
-        files.push(i);
-    }
-    // TODO 重名提醒
-    for (const i of files) {
-        e(i);
-    }
-    function e(file: string) {
-        const stream0 = Seven.list(file);
-        stream0.on("end", () => {
-            const l = stream0.info.get(""); // TODO 具体信息
-            let stream1: Seven.ZipStream;
-            let targetPath = "";
-            if (l === "1") {
-                targetPath = nowPath;
-                stream1 = Seven.extractFull(file, targetPath);
+            let stat: import("fs").Stats;
+            let lstat: import("fs").Stats;
+            let isHidden = false;
+            if (isWindow) {
+                winattr.get(fullPath, (error, data) => {
+                    isHidden = error != null ? false : data.hidden;
+                });
             } else {
-                const dirName = path.basename(file);
-                targetPath = path.join(nowPath, dirName);
-                fs.mkdirSync(targetPath);
-                stream1 = Seven.extractFull(file, targetPath);
+                isHidden = entry.name.startsWith(".");
             }
-            const prePath = nowPath;
-            stream1.on("end", () => {
-                if (nowPath === prePath) {
-                    render(entry(nowPath));
-                    select = [path.basename(targetPath)];
-                    selectEl();
-                }
-            });
+            try {
+                stat = fs.statSync(fullPath);
+                lstat = fs.lstatSync(fullPath);
+                l.push({
+                    name: entry.name,
+                    isDirectory: entry.isDirectory(),
+                    atime: stat?.atime,
+                    birthtime: stat?.birthtime,
+                    mtime: stat?.mtime,
+                    isSymbolicLink: lstat?.isSymbolicLink(), // lstat
+                    size: stat?.size,
+                    isHidden,
+                });
+            } catch (error) {}
+        }
+        return l;
+    }
+
+    #sort(l: file[]) {
+        return l.toSorted((a, b) => {
+            return a.name.localeCompare(b.name, navigator.language, { numeric: true });
         });
     }
-}
 
-function moveToBin() {
-    const fileList = getFullSelect();
-    for (const i of fileList) {
-        shell.trashItem(i);
-    }
-    render(entry(nowPath));
-    select = [];
-    selectEl();
-}
+    #render(directory: file[]) {
+        contentEl.clear();
 
-function rm() {
-    const fileList = getFullSelect();
-    for (const i of fileList) {
-        fs.unlinkSync(i);
-    }
-    render(entry(nowPath));
-    select = [];
-    selectEl();
-}
+        const s = this.#sort(directory);
+        console.log(s);
 
-function switchHidden(h: boolean) {
-    hidden = !h;
-    render(entry(nowPath));
-    selectEl();
-}
+        // TODO 虚拟列表 虚拟阵列
+        for (const i of s) {
+            const iEl = view()
+                .add([i.isDirectory ? txt("📂") : txt("📄"), txt(i.name)])
+                .addInto(contentEl)
+                .data({
+                    path: i.name,
+                    dir: i.isDirectory ? "1" : "0",
+                });
+            if (i.isHidden) iEl.class("hidden");
+        }
 
-function createOpraEl(type: keyof typeof opra) {
-    const opraEl = view().class("opra");
-    opraEl.el.innerHTML = `<img src="${opra[type].icon}" alt="">`;
-    if (opra[type].fun.length === 0) {
-        opraEl.el.onclick = () => {
-            // @ts-ignore
-            opra[type].fun();
+        contentEl.el.onclick = (e) => {
+            const eventPath = e.composedPath() as HTMLElement[];
+            let targetPath = ".";
+            let isDir = false;
+            for (const i of eventPath) {
+                if (i.getAttribute("data-path")) {
+                    targetPath = i.getAttribute("data-path") as string;
+                    isDir = i.getAttribute("data-dir") === "1";
+                    break;
+                }
+            }
+            console.log(targetPath);
+            if (e.ctrlKey) {
+                for (const i of this.shiftSelect) {
+                    if (!this.select.includes(i)) {
+                        this.select.push(i);
+                    }
+                }
+                this.shiftSelect = [];
+                if (this.select.includes(targetPath)) {
+                    this.select = this.select.filter((i) => i !== targetPath);
+                } else {
+                    this.select.push(targetPath);
+                }
+                this.#selectEl(this.select);
+            } else if (e.shiftKey) {
+                let start = s.findIndex((i) => i.name === targetPath);
+                let end = s.findIndex((i) => i.name === this.select.at(-1));
+                if (start > end) {
+                    [start, end] = [end, start];
+                }
+                this.shiftSelect = s.slice(start, end + 1).map((i) => i.name);
+                this.#selectEl(this.select.concat(this.shiftSelect));
+            } else {
+                if (isDir) {
+                    this.setPath(path.join(this.nowPath, targetPath));
+                } else {
+                    // todo 打开文件 自定义
+                    console.log(targetPath);
+                    window.open(`file://${path.join(this.nowPath, targetPath)}`);
+                }
+            }
         };
     }
-    if (opra[type].fun.length === 1) {
-        const checkbox = check("");
-        opraEl.add(label([checkbox]));
-        checkbox.el.onchange = () => {
-            opra[type].fun(checkbox.gv);
-        };
+    #selectEl(l: string[] = this.select) {
+        console.log(l);
+        for (const i of contentEl.queryAll(".selected")) {
+            i.el.classList.remove("selected");
+        }
+        for (const i of l) {
+            contentEl.query(`[data-path="${i}"]`)?.class("selected");
+        }
     }
-    return opraEl;
+
+    setPath(p: string) {
+        this.nowPath = p;
+        this.#render(this.#entry(p));
+    }
+
+    // todo 拖拽
+    // todo 矩形框选
+    // todo 方向键
+    // todo 快捷键
+
+    dotdot() {
+        // 根据nowpath获取上一级路径
+        const p = path.dirname(this.nowPath);
+        if (p === this.nowPath) {
+            return;
+        }
+        this.setPath(p);
+        this.select = [];
+        this.#selectEl();
+    }
+
+    getFullSelect() {
+        return this.select.map((i) => path.join(this.nowPath, i));
+    }
+
+    reflash() {
+        this.setPath(this.nowPath);
+        this.#selectEl();
+    }
+
+    copy() {
+        let fileList = this.getFullSelect();
+        console.log(fileList);
+        fileList = fileList.map((i) => `file://${path.join(this.nowPath, i)}`);
+        clipboard.writeText(fileList.join("\n")); // TODO 系统级api
+    }
+
+    cut() {
+        isCut = true;
+        this.copy();
+    }
+
+    paste() {
+        let fileList = clipboard.readText().split("\n");
+        fileList = fileList.map((i) => i.replace("file://", ""));
+        // todo 重名检测
+        if (isCut) {
+            for (const i of fileList) {
+                fs.renameSync(i, path.join(this.nowPath, i));
+            }
+            isCut = false;
+        } else {
+            for (const i of fileList) {
+                fs.copyFileSync(i, path.join(this.nowPath, i));
+            }
+        }
+        this.setPath(this.nowPath);
+        this.select = structuredClone(fileList);
+        this.#selectEl();
+    }
+
+    async rename() {
+        if (this.select.length !== 1) return;
+        const name = await prompt("请输入新文件名");
+        // todo 重名检测
+        if (!name) return;
+        fs.renameSync(path.join(this.nowPath, this.select[0]), path.join(this.nowPath, name));
+        this.setPath(this.nowPath);
+        this.select = [];
+        this.#selectEl();
+    }
+
+    async newDir() {
+        const name = await prompt("请输入文件夹名");
+        // todo 重名检测
+        if (!name) return;
+        fs.mkdirSync(path.join(this.nowPath, name));
+        if (this.select.length) {
+            for (const i of this.select) {
+                fs.renameSync(path.join(this.nowPath, i), path.join(this.nowPath, name, i));
+            }
+            this.select = [];
+        }
+        this.setPath(this.nowPath);
+        this.#selectEl();
+    }
+
+    zip() {
+        const stream = Seven.add(path.basename(this.select[0]), this.getFullSelect(), { $progress: true });
+    }
+
+    unzip() {
+        // 分卷识别
+        const files: string[] = [];
+        const fenjuan: string[] = [];
+        lx: for (const i of this.select) {
+            const p: [RegExp, string][] = [
+                [/\.\d{3}$/, ".001"],
+                [/\.part\d{2}\.rar$/, ".part01.rar"],
+                [/\.part\d{3}\.rar$/, ".part001.rar"],
+                [/\.z\d{2}/, ""],
+                [/\.r\d{2}/, ""],
+            ];
+            for (const pp of p) {
+                if (i.match(pp[0])) {
+                    const basename = i.replace(pp[0], "");
+                    if (!fenjuan.includes(basename)) {
+                        fenjuan.push(basename);
+                        if (pp[1]) files.push(pp[1]);
+                    }
+                    continue lx;
+                }
+            }
+            files.push(i);
+        }
+        // TODO 重名提醒
+        const e = (file: string) => {
+            const stream0 = Seven.list(file);
+            stream0.on("end", () => {
+                const l = stream0.info.get(""); // TODO 具体信息
+                let stream1: Seven.ZipStream;
+                let targetPath = "";
+                if (l === "1") {
+                    targetPath = this.nowPath;
+                    stream1 = Seven.extractFull(file, targetPath);
+                } else {
+                    const dirName = path.basename(file);
+                    targetPath = path.join(this.nowPath, dirName);
+                    fs.mkdirSync(targetPath);
+                    stream1 = Seven.extractFull(file, targetPath);
+                }
+                const prePath = this.nowPath;
+                stream1.on("end", () => {
+                    if (this.nowPath === prePath) {
+                        this.setPath(this.nowPath);
+                        this.select = [path.basename(targetPath)];
+                        this.#selectEl();
+                    }
+                });
+            });
+        };
+        for (const i of files) {
+            e(i);
+        }
+    }
+
+    moveToBin() {
+        const fileList = this.getFullSelect();
+        for (const i of fileList) {
+            shell.trashItem(i);
+        }
+        this.setPath(this.nowPath);
+        this.select = [];
+        this.#selectEl();
+    }
+
+    rm() {
+        const fileList = this.getFullSelect();
+        for (const i of fileList) {
+            fs.unlinkSync(i);
+        }
+        this.setPath(this.nowPath);
+        this.select = [];
+        this.#selectEl();
+    }
+
+    hidden(h: boolean) {
+        this.isHidden = !h;
+        this.setPath(this.nowPath);
+        this.#selectEl();
+    }
+
+    #showOpra() {
+        const opraList: (keyof typeof this.opra)[] = [
+            "dotdot",
+            "reflash",
+            "copy",
+            "cut",
+            "paste",
+            "newDir",
+            "rename",
+            "moveToBin",
+            "zip",
+            "unzip",
+            "delete",
+            "hidden",
+        ];
+
+        const createOpraEl = (type: keyof typeof this.opra) => {
+            const opraEl = view().class("opra");
+            opraEl.el.innerHTML = `<img src="${this.opra[type].icon}" alt="">`;
+
+            const o = this.opra[type];
+
+            if ("v" in o) {
+                const checkbox = check("").sv(o.v);
+                opraEl.add(label([checkbox]));
+                checkbox.el.onchange = () => {
+                    o.fun(checkbox.gv);
+                };
+            } else {
+                opraEl.el.onclick = () => {
+                    // @ts-ignore
+                    o.fun();
+                };
+            }
+            return opraEl;
+        };
+        opraEl.clear().add(opraList.map((i) => createOpraEl(i)));
+    }
+    focus() {
+        this.#showOpra();
+    }
 }
 
-opraEl.add(opraList.map((i) => createOpraEl(i)));
+function getNowFileV() {
+    return fileViews[nowFileIndex] ?? fileViews[0] ?? null;
+}
 
 // todo ftp
 // todo webdav
@@ -385,6 +412,11 @@ opraEl.add(opraList.map((i) => createOpraEl(i)));
 const x = new URLSearchParams(location.search);
 
 if (x.get("path")) {
-    nowPath = x.get("path") as string;
-    render(entry(nowPath));
+    const nowPath = x.get("path") as string;
+    const el = view().addInto(contentEl);
+    const v = new FileView(el, opraEl);
+    fileViews.push(v);
+    nowFileIndex = fileViews.length - 1;
+    v.setPath(nowPath);
+    v.focus();
 }
