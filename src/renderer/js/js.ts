@@ -84,9 +84,12 @@ const treeX = {
     inspect: (id: number, x: number, y: number) => {
         ipcRenderer.send("tab_view", "inspect", id, { x, y });
     },
+    permission: (id: number, type: string, allow: boolean) => {
+        ipcRenderer.send("tab_view", "permission", id, { type, allow });
+    },
 };
 
-const site_p_list: Map<string, string[]> = new Map();
+const sitesPermission: Map<number, string[]> = new Map(); // todo url
 
 // --- ui
 
@@ -308,9 +311,9 @@ siteAboutEl.el.addEventListener("toggle", (e) => {
     // @ts-ignore
     if (e.newState === "closed") {
         setChromeSize("hide");
-        const list = site_p_list.get(now_url);
+        const list = sitesPermission.get(topestView);
         for (const i of list ?? []) {
-            ipcRenderer.send("site_about", now_url, i, false);
+            treeX.permission(topestView, i, false);
         }
     }
 });
@@ -737,10 +740,10 @@ function hide_menu() {
     menu_el.el.hidePopover();
 }
 
-function render_site_permission_requ() {
+function render_site_permission_requ(id: number) {
     permissionEl.clear();
-    const url = now_url;
-    const l = site_p_list.get(url) || [];
+    const url = treeX.get(id).url;
+    const l = sitesPermission.get(id) || [];
     const t = view();
     const lel = view().add(`${new URL(url)}`);
     for (const i of l) {
@@ -749,20 +752,20 @@ function render_site_permission_requ() {
         const al = view()
             .add("allow")
             .on("click", () => {
-                ipcRenderer.send("site_about", url, i, true);
+                treeX.permission(id, i, true);
                 setChromeSize("hide");
-                site_p_list.set(
-                    url,
+                sitesPermission.set(
+                    id,
                     l.filter((x) => x !== i),
                 );
             });
         const rj = view()
             .add("reject")
             .on("click", () => {
-                ipcRenderer.send("site_about", url, i, false);
+                treeX.permission(id, i, false);
                 setChromeSize("hide");
-                site_p_list.set(
-                    url,
+                sitesPermission.set(
+                    id,
                     l.filter((x) => x !== i),
                 );
             });
@@ -824,18 +827,19 @@ ipcRenderer.on("view", (_e, type: syncView, id: number, pid: number, wid: number
     }
 });
 
-ipcRenderer.on("site_about", (_e, p, url) => {
-    console.log(url);
+ipcRenderer.on("site_about", (_e, p, url, id) => {
+    console.log("permission", url, id, p);
 
     setChromeSize("full");
 
     siteAboutEl.el.showPopover();
 
-    const l = site_p_list.get(url) || [];
+    const l = sitesPermission.get(id) || [];
     l.push(p);
-    site_p_list.set(url, l);
+    sitesPermission.set(id, l);
 
-    render_site_permission_requ();
+    render_site_permission_requ(id);
+    // todo switch时切换
 });
 
 renderTree(0);

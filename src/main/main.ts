@@ -299,6 +299,8 @@ const winToChrome: Map<bwin_id, { view: BrowserView; size: "normal" | "hide" | "
 const viewL: Map<view_id, BrowserView> = new Map();
 const winToPasswd: Map<BrowserWindow, BrowserView> = new Map();
 
+const permissionCb = new Map<view_id, Map<string, (isGranted: boolean) => void>>();
+
 // 窗口
 async function createWin() {
     const window_name = new Date().getTime() as bwin_id;
@@ -648,12 +650,10 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
         return true;
     });
     wc.session.setPermissionRequestHandler((w, p, cb) => {
-        chrome.webContents.send("site_about", p, w.getURL());
-        ipcMain.on("site_about", (_e, a, pp, b) => {
-            if (a === w.getURL() && pp === p) {
-                cb(b);
-            }
-        });
+        chrome.webContents.send("site_about", p, w.getURL(), view_id);
+        const cbMap = permissionCb.get(view_id) ?? new Map();
+        cbMap.set(p, cb);
+        permissionCb.set(view_id, cbMap);
     });
 
     wc.on("update-target-url", (_e, url) => {
@@ -754,6 +754,9 @@ ipcMain.on("tab_view", async (e, type, id: view_id, arg2) => {
             break;
         case "download":
             download(arg2);
+            break;
+        case "permission":
+            permissionCb.get(id)?.get(arg2.type)?.(arg2.allow);
             break;
     }
 });
