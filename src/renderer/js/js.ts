@@ -432,7 +432,10 @@ function setUrl(url: string) {
             const p = decodeURIComponent(detail.pathname)
                 .split("/")
                 .filter((x) => x !== "");
-            const l = p.flatMap((x) => [txt(x).style({ color: "#444" }), h("/")]);
+            const l = p.flatMap((x) => [txt(x).style({ color: "#444" }), h("/")]).slice(0, -1);
+            if (process.platform !== "win32") {
+                l.unshift(h("/"));
+            }
             l.at(-1)?.style({ color: "#000" });
             urlEl.add(view().add(l));
         }
