@@ -331,7 +331,7 @@ function setChromeSize(type: "normal" | "hide" | "full") {
         searchListEl.clear();
     }
     if (type === "hide") {
-        treeEl.style({ display: "none" });
+        treePel.style({ display: "none" });
     }
     chrome_size = type;
 }
@@ -571,8 +571,8 @@ function createCard(id: number): Card {
 
 function renderTree(i: number) {
     treeIndex = i;
+    treePel.style({ display: "flex" });
     treeEl.clear();
-    treeEl.style({ display: "flex" });
     const d = 5;
     const root = (treeX.get(0).next ?? []).toReversed();
     const rootSlice = root.slice(i * d, i * d + d);
