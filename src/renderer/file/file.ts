@@ -92,17 +92,16 @@ function entry(directory: string) {
         try {
             stat = fs.statSync(fullPath);
             lstat = fs.lstatSync(fullPath);
-            if (!hidden || !isHidden)
-                l.push({
-                    name: entry.name,
-                    isDirectory: entry.isDirectory(),
-                    atime: stat?.atime,
-                    birthtime: stat?.birthtime,
-                    mtime: stat?.mtime,
-                    isSymbolicLink: lstat?.isSymbolicLink(), // lstat
-                    size: stat?.size,
-                    isHidden,
-                });
+            l.push({
+                name: entry.name,
+                isDirectory: entry.isDirectory(),
+                atime: stat?.atime,
+                birthtime: stat?.birthtime,
+                mtime: stat?.mtime,
+                isSymbolicLink: lstat?.isSymbolicLink(), // lstat
+                size: stat?.size,
+                isHidden,
+            });
         } catch (error) {}
     }
     return l;
