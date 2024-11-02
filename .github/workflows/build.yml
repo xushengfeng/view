@@ -36,7 +36,7 @@ jobs:
                   M_ARCH: ${{matrix.arch}}
               run: |
                   npm install -g pnpm
-                  pnpm install
+                  pnpm install --shamefully-hoist
                   pnpm run dist
 
             - name: release
