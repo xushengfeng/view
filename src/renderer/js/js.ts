@@ -52,6 +52,15 @@ const treeX = {
 
         return view as treeItem;
     },
+    getPPP: (id: number) => {
+        let v = treeX.get(id);
+        let _id = id;
+        while (v.parent !== 0) {
+            v = treeX.get(v.parent);
+            _id = v.parent;
+        }
+        return _id;
+    },
     reload: (id: number) => {
         ipcRenderer.send("tab_view", "reload", id);
     },
@@ -212,13 +221,17 @@ class Card extends HTMLElement {
         this.setAttribute("data-id", this.view_id.toString());
 
         img.on("click", () => {
-            // 切换到活跃标签页，若已关闭，超时建立新card，不超时则重启
+            // 切换到活跃标签页
             if (activeViews.includes(this.view_id)) {
                 treeX.switch(this.view_id);
                 topestView = this.view_id;
             } else {
+                // 若已关闭，超时且挤在倒数几个，则建立新card，否则重启
                 const t = 1000 * 60 * 60 * 12;
-                if (new Date().getTime() - this.view_id > t) {
+                const proot = treeX.getPPP(this.view_id);
+                const rootL = treeX.get(0).next || [];
+                const i = rootL.indexOf(proot);
+                if (new Date().getTime() - this.view_id > t && rootL.length - i > 4) {
                     treeX.add(this._url);
                 } else {
                     treeX.restart(this.view_id);
