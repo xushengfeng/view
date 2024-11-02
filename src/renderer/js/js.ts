@@ -332,10 +332,10 @@ function setUrl(url: string) {
         urlEl.add(protocol.slice(0, 1)); // todo icon
         let detail: URL;
         if (protocol === "file") {
-            detail = new URL(url);
+            detail = new URL(decodeURIComponent(url));
         } else {
             const fakeUrl = `https://${x.replace(/^\/\//, "")}`;
-            detail = new URL(fakeUrl);
+            detail = new URL(decodeURIComponent(fakeUrl));
         }
 
         console.log(detail);
