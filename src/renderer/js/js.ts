@@ -347,10 +347,10 @@ function setUrl(url: string) {
         urlEl.add(protocol.slice(0, 1)); // todo icon
         let detail: URL;
         if (protocol === "file") {
-            detail = new URL(decodeURIComponent(url));
+            detail = new URL(url);
         } else {
             const fakeUrl = `https://${x.replace(/^\/\//, "")}`;
-            detail = new URL(decodeURIComponent(fakeUrl));
+            detail = new URL(fakeUrl);
         }
 
         console.log(detail);
@@ -386,7 +386,7 @@ function setUrl(url: string) {
                 domain
                     .split(".")
                     .slice(0, -2)
-                    .flatMap((x) => [x, h(".")]),
+                    .flatMap((x) => [decodeURIComponent(x), h(".")]),
             );
             domainEl.add(
                 txt()
@@ -394,7 +394,7 @@ function setUrl(url: string) {
                         domain
                             .split(".")
                             .slice(-2)
-                            .flatMap((x) => [x, h(".")])
+                            .flatMap((x) => [decodeURIComponent(x), h(".")])
                             .slice(0, -1),
                     )
                     .style({ color: "#000" }),
@@ -408,7 +408,7 @@ function setUrl(url: string) {
         }
 
         if (detail.username) {
-            urlEl.add(v("@", detail.username));
+            urlEl.add(v("@", decodeURIComponent(detail.username)));
         }
 
         if (detail.password) {
@@ -419,7 +419,7 @@ function setUrl(url: string) {
                     .add([h(":"), pEl])
                     .style({ color: "#444" })
                     .on("pointerenter", () => {
-                        pEl.sv(detail.password);
+                        pEl.sv(decodeURIComponent(detail.password));
                     })
                     .on("pointerleave", () => {
                         pEl.sv(hideP);
@@ -429,7 +429,9 @@ function setUrl(url: string) {
 
         if (detail.pathname) {
             // todo windows?
-            const p = detail.pathname.split("/").filter((x) => x !== "");
+            const p = decodeURIComponent(detail.pathname)
+                .split("/")
+                .filter((x) => x !== "");
             const l = p.flatMap((x) => [txt(x).style({ color: "#444" }), h("/")]);
             l.at(-1)?.style({ color: "#000" });
             urlEl.add(view().add(l));
@@ -437,7 +439,7 @@ function setUrl(url: string) {
 
         if (detail.hash) {
             const hash = detail.hash.slice(1);
-            urlEl.add(v("#", hash));
+            urlEl.add(v("#", decodeURIComponent(hash)));
         }
 
         if (detail.search) {
