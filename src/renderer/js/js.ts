@@ -4,7 +4,7 @@ import type { cardData, syncView, treeItem } from "../../types";
 
 const { ipcRenderer, clipboard } = require("electron") as typeof import("electron");
 import * as path from "node:path";
-import { addClass, button, ele, type ElType, image, input, pureStyle, txt, view } from "dkh-ui";
+import { addClass, button, ele, type ElType, image, input, pureStyle, spacer, txt, view } from "dkh-ui";
 import store from "../../../lib/store/renderStore";
 
 const setting = store;
@@ -36,6 +36,8 @@ let now_url = "about:blank";
 let activeViews: number[] = [];
 const myViews: number[] = [];
 let topestView = Number.NaN;
+
+let treeIndex = 0;
 
 const download_url = "view://download";
 
@@ -146,7 +148,7 @@ const b_reload = iconEl("reload").on("click", () => {
 
 const show_tree = iconEl("reload").on("click", () => {
     setChromeSize("full");
-    renderTree();
+    renderTree(treeIndex);
 });
 
 buttons.add([b_reload, show_tree]);
@@ -175,12 +177,9 @@ urlEl.on("contextmenu", (e) => {
         });
 });
 
-const treePel = view("y")
-    .class(barStyle)
-    .style({ height: "calc(100vh - 24px)", width: "100vw", overflow: "scroll" })
-    .addInto();
+const treePel = view("y").class(barStyle).style({ height: "calc(100vh - 24px)", width: "100vw" }).addInto();
 
-const treeEl = view("x").style({ width: "100vw", overflow: "scroll", flexGrow: 1 }).addInto(treePel);
+const treeEl = view("x").style({ width: "100vw", overflowX: "scroll", flexGrow: 1 }).addInto(treePel);
 
 class Card extends HTMLElement {
     view_id: number;
@@ -251,7 +250,7 @@ class Card extends HTMLElement {
         if (this._next?.length > 0) {
             this.childrenEl.clear();
             for (const i of this._next) {
-                const child = create_card(i);
+                const child = createCard(i);
                 this.childrenEl.add(child);
             }
         }
@@ -557,7 +556,7 @@ function addSearchItem(i: searchListT[0]) {
     searchListEl.add(el);
 }
 
-function create_card(id: number): Card {
+function createCard(id: number): Card {
     const view = treeX.get(id);
     const title = view.title;
     const next = view.next;
@@ -567,17 +566,39 @@ function create_card(id: number): Card {
     return card;
 }
 
-function renderTree() {
+function renderTree(i: number) {
+    treeIndex = i;
     treeEl.clear();
     treeEl.style({ display: "flex" });
-    const i = 0;
-    // @ts-ignore
-    const root = (treeX.get(0).next ?? []).toReversed().slice(i, i + 5);
-    // TODO 虚拟列表
-    for (const i of root.toReversed()) {
-        const x = create_card(i);
-        treeEl.add(x);
+    const d = 5;
+    const root = (treeX.get(0).next ?? []).toReversed();
+    const rootSlice = root.slice(i * d, i * d + d);
+    treeEl.add(spacer()); // justify-content:end
+    if (i * d + d <= root.length) {
+        treeEl.add(
+            iconEl("left")
+                .style({ flexShrink: 0 })
+                .on("click", () => {
+                    renderTree(i + 1);
+                }),
+        );
     }
+    const treeContent = view("x").style({ flexDirection: "row-reverse" }).addInto(treeEl);
+    for (const i of rootSlice) {
+        const x = createCard(i);
+        treeContent.add(view().add(x).style({ maxHeight: "100%", overflowY: "scroll", overflowX: "hidden" }));
+    }
+    if (i > 0) {
+        treeEl.add(
+            iconEl("right")
+                .style({ flexShrink: 0 })
+                .on("click", () => {
+                    renderTree(i - 1);
+                }),
+        );
+    }
+
+    treeEl.el.scrollLeft = treeEl.el.scrollWidth - treeEl.el.offsetWidth;
 }
 
 function getCardById(id: number) {
@@ -591,7 +612,7 @@ function cardAdd(id: number, parent: number) {
     if (chrome_size !== "full") setChromeSize("normal");
     const pCardEl = getCardById(parent);
     if (pCardEl) {
-        const x = create_card(id);
+        const x = createCard(id);
         pCardEl.childrenEl.el.insertBefore(x, pCardEl.childrenEl.el.firstChild);
     }
 }
@@ -817,4 +838,4 @@ ipcRenderer.on("site_about", (_e, p, url) => {
     render_site_permission_requ();
 });
 
-renderTree();
+renderTree(0);
