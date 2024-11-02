@@ -25,41 +25,77 @@ const KeyvSqlite = require("@keyv/sqlite").default as typeof import("@keyv/sqlit
 
 const store = new Store();
 
-ipcMain.on("store", (e, x) => {
-    if (x.type === "get") {
-        e.returnValue = store.get(x.path);
-    } else if (x.type === "set") {
-        store.set(x.path, x.value);
-    } else if (x.type === "path") {
-        e.returnValue = app.getPath("userData");
-    }
-});
-
-// 自定义用户路径
-try {
-    let userDataPath = fs.readFileSync(path.join(run_path, "preload_config")).toString().trim();
-    if (userDataPath) {
-        if (app.isPackaged) {
-            userDataPath = path.join(run_path, "../../", userDataPath);
-        } else {
-            userDataPath = path.join(run_path, userDataPath);
-        }
-        app.setPath("userData", userDataPath);
-    }
-} catch (e) {}
-
-// 获取运行位置
-ipcMain.on("run_path", (event) => {
-    event.returnValue = run_path;
-});
-
 let /** 是否开启开发模式 */ dev: boolean;
-// 自动开启开发者模式
-if (process.argv.includes("-d") || import.meta.env.DEV) {
-    dev = true;
-} else {
-    dev = false;
+
+let the_icon = path.join(run_path, "assets/logo/1024x1024.png");
+if (process.platform === "win32") {
+    the_icon = path.join(run_path, "assets/logo/icon.ico");
 }
+
+const isMac = process.platform === "darwin";
+
+/** BrowserWindow id */
+type bwin_id = number & { readonly __tag: unique symbol };
+// 一个browserview对应一个id，不存在history
+/** 网页id（包括在同一页面跳转的） */
+type view_id = number & { readonly __tag: unique symbol };
+const winL: Map<bwin_id, BrowserWindow> = new Map();
+// 不同的view分配到窗口
+const winToViewl: Map<bwin_id, view_id[]> = new Map();
+const winToChrome: Map<bwin_id, { view: BrowserView; size: "normal" | "hide" | "full" }> = new Map();
+const viewL: Map<view_id, BrowserView> = new Map();
+const winToPasswd: Map<BrowserWindow, BrowserView> = new Map();
+
+const permissionCb = new Map<view_id, Map<string, (isGranted: boolean) => void>>();
+
+const keyvSqlite = new KeyvSqlite(`sqlite://${app.getPath("userData")}/text.sqlite`);
+const treeTextKeyv = new Keyv({ store: keyvSqlite });
+const keyvSqlite1 = new KeyvSqlite(`sqlite://${app.getPath("userData")}/tree.sqlite`);
+const treeKeyv = new Keyv({ store: keyvSqlite1 });
+const keyvSqlite2 = new KeyvSqlite(`sqlite://${app.getPath("userData")}/name.sqlite`);
+const nameKeyv = new Keyv({ store: keyvSqlite2 });
+
+const tree_text_store = {
+    set: (id: view_id, value: string) => {
+        // todo: local storage
+        // todo yjs sync
+        return treeTextKeyv.set(String(id), value);
+    },
+    get: (id: view_id) => {
+        return treeTextKeyv.get(String(id));
+    },
+};
+const treeStore = {
+    set: async (id: view_id, key: keyof treeItem, value) => {
+        // todo: local storage
+        // todo yjs sync
+        const data = (await treeKeyv.get(String(id))) || {};
+        data[key] = value;
+        return treeKeyv.set(String(id), data);
+    },
+    get: (id: view_id) => {
+        return treeKeyv.get(String(id)) as Promise<treeItem>;
+    },
+};
+const nameStore = {
+    set: async (id: view_id, name: string) => {
+        return nameKeyv.set(String(id), name);
+    },
+    get: (id: view_id) => {
+        return nameKeyv.get(String(id)) as Promise<string>;
+    },
+};
+
+// @ts-ignore
+const download_store = new Store({ name: "download" });
+
+let aria2_port = Number.NaN;
+const aria2_f = path.join(run_path, "extra", process.platform, process.arch, "engine", "aria2c");
+const aria2_conf = path.join(run_path, "extra", process.platform, process.arch, "engine", "aria2.conf");
+
+let aria2_p: ReturnType<typeof spawn>;
+
+let check_global_aria2_run = false;
 
 function renderer_url(
     file_name: string,
@@ -96,211 +132,9 @@ function rendererPath(window: BrowserWindow | Electron.WebContents, file_name: s
     window.loadURL(renderer_url(file_name, q));
 }
 
-// @ts-ignore
-lan(store.get("lan"));
-
-app.commandLine.appendSwitch("enable-experimental-web-platform-features", "enable");
-
-app.whenReady().then(() => {
-    if (store.get("firstRun") === undefined) setDefaultSetting();
-    fixSettingTree();
-
-    nativeTheme.themeSource = store.get("appearance.theme");
-
-    const template = [
-        // { role: 'appMenu' }
-        ...(isMac
-            ? [
-                  {
-                      label: app.name,
-                      submenu: [
-                          { label: `${t("关于")} ${app.name}`, role: "about" },
-                          { type: "separator" },
-                          {
-                              label: t("设置"),
-                              click: () => {},
-                              accelerator: "CmdOrCtrl+,",
-                          },
-                          { type: "separator" },
-                          { label: t("服务"), role: "services" },
-                          { type: "separator" },
-                          { label: `${t("隐藏")} ${app.name}`, role: "hide" },
-                          { label: t("隐藏其他"), role: "hideOthers" },
-                          { label: t("全部显示"), role: "unhide" },
-                          { type: "separator" },
-                          { label: `退出 ${app.name}`, role: "quit" },
-                      ],
-                  },
-              ]
-            : []),
-        // { role: 'fileMenu' }
-        {
-            label: t("文件"),
-            submenu: [
-                ...(isMac
-                    ? []
-                    : [
-                          {
-                              label: t("设置"),
-                              click: () => {},
-                              accelerator: "CmdOrCtrl+,",
-                          },
-                          { type: "separator" },
-                      ]),
-                { type: "separator" },
-                { label: t("关闭"), role: "close" },
-            ],
-        },
-        { role: "editMenu" },
-        {
-            label: t("视图"),
-            submenu: [
-                { label: t("重新加载"), role: "reload" },
-                { label: t("强制重载"), role: "forceReload" },
-                { label: t("开发者工具"), role: "toggleDevTools" },
-                { label: t("实际大小"), role: "resetZoom", accelerator: "CmdOrCtrl+0" },
-                { label: t("放大"), role: "zoomIn", accelerator: "CmdOrCtrl+=" },
-                { label: t("缩小"), role: "zoomOut" },
-                { type: "separator" },
-                { label: t("全屏"), role: "togglefullscreen" },
-            ],
-        },
-        // { role: 'windowMenu' }
-        {
-            label: t("窗口"),
-            submenu: [
-                {
-                    label: t("框架"),
-                    accelerator: "CmdOrCtrl+S",
-                    click(_i, w) {
-                        for (const i of winL) {
-                            if (i[1] === w) {
-                                winToChrome.get(i[0])?.view.webContents.send("win", "chrome_toggle");
-                                break;
-                            }
-                        }
-                    },
-                },
-                { label: t("最小化"), role: "minimize" },
-                { label: t("关闭"), role: "close" },
-                ...(isMac
-                    ? [
-                          { type: "separator" },
-                          { label: t("置于最前面"), role: "front" },
-                          { type: "separator" },
-                          { label: t("窗口"), role: "window" },
-                      ]
-                    : []),
-            ],
-        },
-        {
-            label: t("帮助"),
-            role: "help",
-            submenu: [
-                {
-                    label: t("教程帮助"),
-                    click: () => {},
-                },
-                { type: "separator" },
-                {
-                    label: t("关于"),
-                    click: () => {},
-                },
-            ],
-        },
-    ] as (Electron.MenuItemConstructorOptions | Electron.MenuItem)[];
-    const menu = Menu.buildFromTemplate(template);
-    Menu.setApplicationMenu(menu);
-
-    createWin();
-
-    check_window();
-});
-
-app.on("will-quit", () => {
-    // Unregister all shortcuts.
-    globalShortcut.unregisterAll();
-});
-
-let the_icon = path.join(run_path, "assets/logo/1024x1024.png");
-if (process.platform === "win32") {
-    the_icon = path.join(run_path, "assets/logo/icon.ico");
-}
-ipcMain.on("setting", async (event, arg, arg1, arg2) => {
-    switch (arg) {
-        case "save_err": {
-            console.log("保存设置失败");
-            break;
-        }
-        case "reload":
-            app.relaunch();
-            app.exit(0);
-            break;
-        case "clear": {
-            const ses = session.defaultSession;
-            if (arg1 === "storage") {
-                ses.clearStorageData()
-                    .then(() => {
-                        event.sender.send("setting", "storage", true);
-                    })
-                    .catch(() => {
-                        event.sender.send("setting", "storage", false);
-                    });
-            } else {
-                Promise.all([
-                    ses.clearAuthCache(),
-                    ses.clearCache(),
-                    ses.clearCodeCaches({}),
-                    ses.clearHostResolverCache(),
-                ])
-                    .then(() => {
-                        event.sender.send("setting", "cache", true);
-                    })
-                    .catch(() => {
-                        event.sender.send("setting", "cache", false);
-                    });
-            }
-            break;
-        }
-        case "open_dialog":
-            dialog.showOpenDialog(arg1).then((x) => {
-                event.sender.send("setting", arg, arg2, x);
-            });
-            break;
-        case "move_user_data": {
-            if (!arg1) return;
-            const to_path = path.resolve(arg1);
-            const pre_path = app.getPath("userData");
-            fs.mkdirSync(to_path, { recursive: true });
-            if (process.platform === "win32") {
-                exec(`xcopy ${pre_path}\\** ${to_path} /Y /s`);
-            } else {
-                exec(`cp -r ${pre_path}/** ${to_path}`);
-            }
-        }
-    }
-});
-
-const isMac = process.platform === "darwin";
-
 function get_size(w: number, h: number) {
     return { x: 0, y: 0, width: w, height: h };
 }
-
-/** BrowserWindow id */
-type bwin_id = number & { readonly __tag: unique symbol };
-// 一个browserview对应一个id，不存在history
-/** 网页id（包括在同一页面跳转的） */
-type view_id = number & { readonly __tag: unique symbol };
-const winL: Map<bwin_id, BrowserWindow> = new Map();
-// 不同的view分配到窗口
-const winToViewl: Map<bwin_id, view_id[]> = new Map();
-const winToChrome: Map<bwin_id, { view: BrowserView; size: "normal" | "hide" | "full" }> = new Map();
-const viewL: Map<view_id, BrowserView> = new Map();
-const winToPasswd: Map<BrowserWindow, BrowserView> = new Map();
-
-const permissionCb = new Map<view_id, Map<string, (isGranted: boolean) => void>>();
-
 // 窗口
 async function createWin() {
     const window_name = new Date().getTime() as bwin_id;
@@ -388,89 +222,6 @@ function setChromeSize(pid: bwin_id) {
         width: main_window.getContentSize()[0],
         height: o[x.size],
     });
-}
-
-ipcMain.on("win", (e, pid, type) => {
-    console.log(pid, type);
-    if (!pid) return;
-    const main_window = BrowserWindow.fromWebContents(e.sender);
-    if (!main_window) return;
-    const chrome = winToChrome.get(pid);
-    switch (type) {
-        case "mini":
-            main_window.minimize();
-            break;
-        case "max":
-            if (main_window.isMaximized()) {
-                main_window.unmaximize();
-            } else {
-                main_window.maximize();
-            }
-            break;
-        case "close":
-            main_window.close();
-            winL.delete(pid);
-            for (const i of winToViewl.get(pid) ?? []) {
-                viewL.delete(i);
-            }
-            winToViewl.delete(pid);
-            winToChrome.delete(pid);
-            break;
-        case "full_chrome":
-            if (chrome) chrome.size = "full";
-            setChromeSize(pid);
-            break;
-        case "normal_chrome":
-            if (chrome) chrome.size = "normal";
-            setChromeSize(pid);
-            break;
-        case "hide_chrome":
-            if (chrome) chrome.size = "hide";
-            setChromeSize(pid);
-            break;
-    }
-});
-
-const keyvSqlite = new KeyvSqlite(`sqlite://${app.getPath("userData")}/text.sqlite`);
-const treeTextKeyv = new Keyv({ store: keyvSqlite });
-const keyvSqlite1 = new KeyvSqlite(`sqlite://${app.getPath("userData")}/tree.sqlite`);
-const treeKeyv = new Keyv({ store: keyvSqlite1 });
-const keyvSqlite2 = new KeyvSqlite(`sqlite://${app.getPath("userData")}/name.sqlite`);
-const nameKeyv = new Keyv({ store: keyvSqlite2 });
-
-const tree_text_store = {
-    set: (id: view_id, value: string) => {
-        // todo: local storage
-        // todo yjs sync
-        return treeTextKeyv.set(String(id), value);
-    },
-    get: (id: view_id) => {
-        return treeTextKeyv.get(String(id));
-    },
-};
-const treeStore = {
-    set: async (id: view_id, key: keyof treeItem, value) => {
-        // todo: local storage
-        // todo yjs sync
-        const data = (await treeKeyv.get(String(id))) || {};
-        data[key] = value;
-        return treeKeyv.set(String(id), data);
-    },
-    get: (id: view_id) => {
-        return treeKeyv.get(String(id)) as Promise<treeItem>;
-    },
-};
-const nameStore = {
-    set: async (id: view_id, name: string) => {
-        return nameKeyv.set(String(id), name);
-    },
-    get: (id: view_id) => {
-        return nameKeyv.get(String(id)) as Promise<string>;
-    },
-};
-
-if (!fs.existsSync(path.join(app.getPath("userData"), "capture"))) {
-    fs.mkdirSync(path.join(app.getPath("userData"), "capture"));
 }
 
 function get_real_url(url: string) {
@@ -688,79 +439,6 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
     return view_id;
 }
 
-ipcMain.on("tab_view", async (e, type, id: view_id, arg2) => {
-    console.log(type);
-
-    const main_window = BrowserWindow.fromWebContents(e.sender);
-    const search_window = viewL.get(id);
-    switch (type) {
-        case "get":
-            e.returnValue = await treeStore.get(id);
-            break;
-        case "close":
-            search_window?.webContents.close();
-            sendViews("close", id, undefined, undefined, undefined);
-            break;
-        case "stop":
-            search_window?.webContents.stop();
-            break;
-        case "reload":
-            search_window?.webContents.reload();
-            break;
-        case "add":
-            for (const x of winL) {
-                const wid = x[0];
-                const w = x[1];
-                if (w === main_window) {
-                    createView(wid, arg2, 0 as view_id);
-                    break;
-                }
-            }
-            break;
-        case "switch":
-            // 获取BrowserWindow并提升bview
-            winToViewl.forEach((bvs, bid) => {
-                for (const i of bvs) {
-                    if (i === id) {
-                        const win = winL.get(bid);
-                        const chrome = winToChrome.get(bid)?.view;
-                        const view = viewL.get(id);
-                        if (!win || !chrome || !view) return;
-                        win.setTopBrowserView(view);
-                        win.setTopBrowserView(chrome);
-                        win.moveTop();
-                        win.focus();
-                        return;
-                    }
-                }
-            });
-            break;
-        case "restart":
-            for (const x of winL) {
-                const wid = x[0];
-                const w = x[1];
-                if (w === main_window) {
-                    const url = (await treeStore.get(id)).url;
-                    createView(wid, url, undefined, id);
-                    break;
-                }
-            }
-            break;
-        case "dev":
-            search_window?.webContents.openDevTools();
-            break;
-        case "inspect":
-            search_window?.webContents.inspectElement(arg2.x, arg2.y);
-            break;
-        case "download":
-            download(arg2);
-            break;
-        case "permission":
-            permissionCb.get(id)?.get(arg2.type)?.(arg2.allow);
-            break;
-    }
-});
-
 function sendViews(type: syncView, id: number, pid?: number, wid?: number, op?: cardData) {
     for (const w of winL) {
         const chrome = winToChrome.get(w[0])?.view;
@@ -768,62 +446,6 @@ function sendViews(type: syncView, id: number, pid?: number, wid?: number, op?: 
     }
 }
 
-ipcMain.on("view", (e, type, arg) => {
-    const main_window = BrowserWindow.fromWebContents(e.sender);
-    switch (type) {
-        case "opensearch":
-            console.log(arg);
-            for (const i in arg) {
-                store.set(`searchEngine.engine.${i}`, arg[i]);
-            }
-            break;
-        case "input":
-            console.log(arg);
-
-            if (!main_window) return;
-
-            if (arg.action === "focus") {
-                const bv = new BrowserView();
-                main_window.addBrowserView(bv);
-                const r = arg.position as DOMRect;
-                const w = 100;
-                const h = 100;
-                bv.setBounds({
-                    width: w,
-                    height: h,
-                    x: Math.floor(Math.min(main_window.getBounds().width - w, r.x)),
-                    y: Math.floor(Math.min(main_window.getBounds().height - h, r.y)),
-                });
-                rendererPath(bv.webContents, "passwd.html");
-                winToPasswd.set(main_window, bv);
-                bv.webContents.on("did-finish-load", () => {
-                    bv.webContents.send("input", arg);
-                });
-                if (dev) bv.webContents.openDevTools();
-            } else {
-                const bv = winToPasswd.get(main_window);
-                if (bv) {
-                    main_window.removeBrowserView(bv);
-                    bv.webContents.close();
-                    winToPasswd.delete(main_window);
-                }
-            }
-    }
-});
-
-ipcMain.on("theme", (_e, v) => {
-    nativeTheme.themeSource = v;
-    store.set("appearance.theme", v);
-});
-
-// @ts-ignore
-const download_store = new Store({ name: "download" });
-
-let aria2_port = Number.NaN;
-const aria2_f = path.join(run_path, "extra", process.platform, process.arch, "engine", "aria2c");
-const aria2_conf = path.join(run_path, "extra", process.platform, process.arch, "engine", "aria2.conf");
-
-let aria2_p: ReturnType<typeof spawn>;
 function aria2_start() {
     console.log(aria2_f, aria2_conf);
     const child = spawn(aria2_f, [`--conf-path=${aria2_conf}`, `-d ${app.getPath("downloads")}`]);
@@ -866,7 +488,6 @@ function aria2(m: string, p: any[]) {
     });
 }
 
-let check_global_aria2_run = false;
 function check_global_aria2() {
     setInterval(async () => {
         if (check_global_aria2_run) {
@@ -1050,3 +671,385 @@ function fixSettingTree() {
     }
     store.set("设置版本", app.getVersion());
 }
+
+ipcMain.on("store", (e, x) => {
+    if (x.type === "get") {
+        e.returnValue = store.get(x.path);
+    } else if (x.type === "set") {
+        store.set(x.path, x.value);
+    } else if (x.type === "path") {
+        e.returnValue = app.getPath("userData");
+    }
+});
+
+// 自定义用户路径
+try {
+    let userDataPath = fs.readFileSync(path.join(run_path, "preload_config")).toString().trim();
+    if (userDataPath) {
+        if (app.isPackaged) {
+            userDataPath = path.join(run_path, "../../", userDataPath);
+        } else {
+            userDataPath = path.join(run_path, userDataPath);
+        }
+        app.setPath("userData", userDataPath);
+    }
+} catch (e) {}
+
+// 获取运行位置
+ipcMain.on("run_path", (event) => {
+    event.returnValue = run_path;
+});
+
+// 自动开启开发者模式
+if (process.argv.includes("-d") || import.meta.env.DEV) {
+    dev = true;
+} else {
+    dev = false;
+}
+
+// @ts-ignore
+lan(store.get("lan"));
+
+app.commandLine.appendSwitch("enable-experimental-web-platform-features", "enable");
+
+app.whenReady().then(() => {
+    if (store.get("firstRun") === undefined) setDefaultSetting();
+    fixSettingTree();
+
+    nativeTheme.themeSource = store.get("appearance.theme");
+
+    const template = [
+        // { role: 'appMenu' }
+        ...(isMac
+            ? [
+                  {
+                      label: app.name,
+                      submenu: [
+                          { label: `${t("关于")} ${app.name}`, role: "about" },
+                          { type: "separator" },
+                          {
+                              label: t("设置"),
+                              click: () => {},
+                              accelerator: "CmdOrCtrl+,",
+                          },
+                          { type: "separator" },
+                          { label: t("服务"), role: "services" },
+                          { type: "separator" },
+                          { label: `${t("隐藏")} ${app.name}`, role: "hide" },
+                          { label: t("隐藏其他"), role: "hideOthers" },
+                          { label: t("全部显示"), role: "unhide" },
+                          { type: "separator" },
+                          { label: `退出 ${app.name}`, role: "quit" },
+                      ],
+                  },
+              ]
+            : []),
+        // { role: 'fileMenu' }
+        {
+            label: t("文件"),
+            submenu: [
+                ...(isMac
+                    ? []
+                    : [
+                          {
+                              label: t("设置"),
+                              click: () => {},
+                              accelerator: "CmdOrCtrl+,",
+                          },
+                          { type: "separator" },
+                      ]),
+                { type: "separator" },
+                { label: t("关闭"), role: "close" },
+            ],
+        },
+        { role: "editMenu" },
+        {
+            label: t("视图"),
+            submenu: [
+                { label: t("重新加载"), role: "reload" },
+                { label: t("强制重载"), role: "forceReload" },
+                { label: t("开发者工具"), role: "toggleDevTools" },
+                { label: t("实际大小"), role: "resetZoom", accelerator: "CmdOrCtrl+0" },
+                { label: t("放大"), role: "zoomIn", accelerator: "CmdOrCtrl+=" },
+                { label: t("缩小"), role: "zoomOut" },
+                { type: "separator" },
+                { label: t("全屏"), role: "togglefullscreen" },
+            ],
+        },
+        // { role: 'windowMenu' }
+        {
+            label: t("窗口"),
+            submenu: [
+                {
+                    label: t("框架"),
+                    accelerator: "CmdOrCtrl+S",
+                    click(_i, w) {
+                        for (const i of winL) {
+                            if (i[1] === w) {
+                                winToChrome.get(i[0])?.view.webContents.send("win", "chrome_toggle");
+                                break;
+                            }
+                        }
+                    },
+                },
+                { label: t("最小化"), role: "minimize" },
+                { label: t("关闭"), role: "close" },
+                ...(isMac
+                    ? [
+                          { type: "separator" },
+                          { label: t("置于最前面"), role: "front" },
+                          { type: "separator" },
+                          { label: t("窗口"), role: "window" },
+                      ]
+                    : []),
+            ],
+        },
+        {
+            label: t("帮助"),
+            role: "help",
+            submenu: [
+                {
+                    label: t("教程帮助"),
+                    click: () => {},
+                },
+                { type: "separator" },
+                {
+                    label: t("关于"),
+                    click: () => {},
+                },
+            ],
+        },
+    ] as (Electron.MenuItemConstructorOptions | Electron.MenuItem)[];
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
+
+    createWin();
+
+    check_window();
+});
+
+app.on("will-quit", () => {
+    // Unregister all shortcuts.
+    globalShortcut.unregisterAll();
+});
+
+ipcMain.on("setting", async (event, arg, arg1, arg2) => {
+    switch (arg) {
+        case "save_err": {
+            console.log("保存设置失败");
+            break;
+        }
+        case "reload":
+            app.relaunch();
+            app.exit(0);
+            break;
+        case "clear": {
+            const ses = session.defaultSession;
+            if (arg1 === "storage") {
+                ses.clearStorageData()
+                    .then(() => {
+                        event.sender.send("setting", "storage", true);
+                    })
+                    .catch(() => {
+                        event.sender.send("setting", "storage", false);
+                    });
+            } else {
+                Promise.all([
+                    ses.clearAuthCache(),
+                    ses.clearCache(),
+                    ses.clearCodeCaches({}),
+                    ses.clearHostResolverCache(),
+                ])
+                    .then(() => {
+                        event.sender.send("setting", "cache", true);
+                    })
+                    .catch(() => {
+                        event.sender.send("setting", "cache", false);
+                    });
+            }
+            break;
+        }
+        case "open_dialog":
+            dialog.showOpenDialog(arg1).then((x) => {
+                event.sender.send("setting", arg, arg2, x);
+            });
+            break;
+        case "move_user_data": {
+            if (!arg1) return;
+            const to_path = path.resolve(arg1);
+            const pre_path = app.getPath("userData");
+            fs.mkdirSync(to_path, { recursive: true });
+            if (process.platform === "win32") {
+                exec(`xcopy ${pre_path}\\** ${to_path} /Y /s`);
+            } else {
+                exec(`cp -r ${pre_path}/** ${to_path}`);
+            }
+        }
+    }
+});
+
+ipcMain.on("win", (e, pid, type) => {
+    console.log(pid, type);
+    if (!pid) return;
+    const main_window = BrowserWindow.fromWebContents(e.sender);
+    if (!main_window) return;
+    const chrome = winToChrome.get(pid);
+    switch (type) {
+        case "mini":
+            main_window.minimize();
+            break;
+        case "max":
+            if (main_window.isMaximized()) {
+                main_window.unmaximize();
+            } else {
+                main_window.maximize();
+            }
+            break;
+        case "close":
+            main_window.close();
+            winL.delete(pid);
+            for (const i of winToViewl.get(pid) ?? []) {
+                viewL.delete(i);
+            }
+            winToViewl.delete(pid);
+            winToChrome.delete(pid);
+            break;
+        case "full_chrome":
+            if (chrome) chrome.size = "full";
+            setChromeSize(pid);
+            break;
+        case "normal_chrome":
+            if (chrome) chrome.size = "normal";
+            setChromeSize(pid);
+            break;
+        case "hide_chrome":
+            if (chrome) chrome.size = "hide";
+            setChromeSize(pid);
+            break;
+    }
+});
+
+if (!fs.existsSync(path.join(app.getPath("userData"), "capture"))) {
+    fs.mkdirSync(path.join(app.getPath("userData"), "capture"));
+}
+
+ipcMain.on("tab_view", async (e, type, id: view_id, arg2) => {
+    console.log(type);
+
+    const main_window = BrowserWindow.fromWebContents(e.sender);
+    const search_window = viewL.get(id);
+    switch (type) {
+        case "get":
+            e.returnValue = await treeStore.get(id);
+            break;
+        case "close":
+            search_window?.webContents.close();
+            sendViews("close", id, undefined, undefined, undefined);
+            break;
+        case "stop":
+            search_window?.webContents.stop();
+            break;
+        case "reload":
+            search_window?.webContents.reload();
+            break;
+        case "add":
+            for (const x of winL) {
+                const wid = x[0];
+                const w = x[1];
+                if (w === main_window) {
+                    createView(wid, arg2, 0 as view_id);
+                    break;
+                }
+            }
+            break;
+        case "switch":
+            // 获取BrowserWindow并提升bview
+            winToViewl.forEach((bvs, bid) => {
+                for (const i of bvs) {
+                    if (i === id) {
+                        const win = winL.get(bid);
+                        const chrome = winToChrome.get(bid)?.view;
+                        const view = viewL.get(id);
+                        if (!win || !chrome || !view) return;
+                        win.setTopBrowserView(view);
+                        win.setTopBrowserView(chrome);
+                        win.moveTop();
+                        win.focus();
+                        return;
+                    }
+                }
+            });
+            break;
+        case "restart":
+            for (const x of winL) {
+                const wid = x[0];
+                const w = x[1];
+                if (w === main_window) {
+                    const url = (await treeStore.get(id)).url;
+                    createView(wid, url, undefined, id);
+                    break;
+                }
+            }
+            break;
+        case "dev":
+            search_window?.webContents.openDevTools();
+            break;
+        case "inspect":
+            search_window?.webContents.inspectElement(arg2.x, arg2.y);
+            break;
+        case "download":
+            download(arg2);
+            break;
+        case "permission":
+            permissionCb.get(id)?.get(arg2.type)?.(arg2.allow);
+            break;
+    }
+});
+
+ipcMain.on("view", (e, type, arg) => {
+    const main_window = BrowserWindow.fromWebContents(e.sender);
+    switch (type) {
+        case "opensearch":
+            console.log(arg);
+            for (const i in arg) {
+                store.set(`searchEngine.engine.${i}`, arg[i]);
+            }
+            break;
+        case "input":
+            console.log(arg);
+
+            if (!main_window) return;
+
+            if (arg.action === "focus") {
+                const bv = new BrowserView();
+                main_window.addBrowserView(bv);
+                const r = arg.position as DOMRect;
+                const w = 100;
+                const h = 100;
+                bv.setBounds({
+                    width: w,
+                    height: h,
+                    x: Math.floor(Math.min(main_window.getBounds().width - w, r.x)),
+                    y: Math.floor(Math.min(main_window.getBounds().height - h, r.y)),
+                });
+                rendererPath(bv.webContents, "passwd.html");
+                winToPasswd.set(main_window, bv);
+                bv.webContents.on("did-finish-load", () => {
+                    bv.webContents.send("input", arg);
+                });
+                if (dev) bv.webContents.openDevTools();
+            } else {
+                const bv = winToPasswd.get(main_window);
+                if (bv) {
+                    main_window.removeBrowserView(bv);
+                    bv.webContents.close();
+                    winToPasswd.delete(main_window);
+                }
+            }
+    }
+});
+
+ipcMain.on("theme", (_e, v) => {
+    nativeTheme.themeSource = v;
+    store.set("appearance.theme", v);
+});
