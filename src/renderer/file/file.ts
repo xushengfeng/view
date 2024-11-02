@@ -64,7 +64,7 @@ class FileView {
         delete: { fun: () => this.rm(), icon: getImgUrl("clear.svg") },
         zip: { fun: () => this.zip(), icon: getImgUrl("zip.svg") },
         unzip: { fun: () => this.unzip(), icon: getImgUrl("unzip.svg") },
-        hidden: { fun: (v: boolean) => this.hidden(v), v: this.isHidden, icon: getImgUrl("eye.svg") },
+        hidden: { fun: (v: boolean) => this.hidden(v), v: () => !this.isHidden, icon: getImgUrl("eye.svg") },
     };
 
     menuList: (keyof typeof this.opra)[] = ["copy", "cut", "paste", "newDir", "rename", "moveToBin", "zip", "unzip"];
@@ -118,7 +118,7 @@ class FileView {
     #render(directory: file[]) {
         contentEl.clear();
 
-        const s = this.#sort(directory);
+        const s = this.isHidden ? this.#sort(directory.filter((i) => !i.isHidden)) : this.#sort(directory);
         console.log(s);
 
         // TODO 虚拟列表 虚拟阵列
@@ -382,7 +382,7 @@ class FileView {
             const o = this.opra[type];
 
             if ("v" in o) {
-                const checkbox = check("").sv(o.v);
+                const checkbox = check("").sv(o.v());
                 opraEl.add(label([checkbox]));
                 checkbox.el.onchange = () => {
                     o.fun(checkbox.gv);
