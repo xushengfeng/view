@@ -267,6 +267,7 @@ function showLyric(el: ElType<HTMLElement>, lyrics: string, audio: HTMLAudioElem
     for (const lyric of lyrics.trim().split("\n")) {
         const t = lyric.indexOf("]");
         const time = lyric.slice(1, t);
+        if (Number.isNaN(Number(time[0]))) continue;
         const text = lyric.slice(t + 1);
         const nt = time.split(".");
         const mainT = nt[0]
