@@ -398,13 +398,20 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
     });
 
     wc.session.setPermissionCheckHandler((_w, _p, _ro) => {
-        return true;
+        return getPermission(url, _p) === "allow";
     });
     wc.session.setPermissionRequestHandler((w, p, cb) => {
-        chrome.webContents.send("site_about", p, w.getURL(), view_id);
-        const cbMap = permissionCb.get(view_id) ?? new Map();
-        cbMap.set(p, cb);
-        permissionCb.set(view_id, cbMap);
+        const pe = getPermission(url, p);
+        if (pe === "allow") {
+            cb(true);
+        } else if (pe === "deny") {
+            cb(false);
+        } else {
+            chrome.webContents.send("site_about", p, w.getURL(), view_id);
+            const cbMap = permissionCb.get(view_id) ?? new Map();
+            cbMap.set(p, cb);
+            permissionCb.set(view_id, cbMap);
+        }
     });
 
     wc.on("update-target-url", (_e, url) => {
@@ -444,6 +451,38 @@ function sendViews(type: syncView, id: number, pid?: number, wid?: number, op?: 
         const chrome = winToChrome.get(w[0])?.view;
         chrome?.webContents.send("view", type, id, pid, wid, op);
     }
+}
+
+function getPermission(url: string, permission: string): "allow" | "deny" | "ask" {
+    if (!url.startsWith("view://") || !url.startsWith("https://")) return "deny";
+    const defaultP: Record<
+        // @ts-ignore
+        Parameters<Parameters<Electron.Session["setPermissionRequestHandler"]>[0]>[1],
+        "allow" | "deny" | "ask"
+    > = {
+        "clipboard-read": "ask",
+        "clipboard-sanitized-write": "ask",
+        "display-capture": "ask",
+        fullscreen: "ask",
+        geolocation: "ask",
+        "idle-detection": "ask",
+        media: "ask",
+        mediaKeySystem: "ask",
+        midi: "ask",
+        midiSysex: "ask",
+        notifications: "ask",
+        pointerLock: "ask",
+        keyboardLock: "ask",
+        openExternal: "ask",
+        "speaker-selection": "ask",
+        "storage-access": "ask",
+        "top-level-storage-access": "ask",
+        "window-management": "ask",
+        unknown: "ask",
+        fileSystem: "ask",
+    };
+    // todo 匹配网站
+    return defaultP[permission];
 }
 
 function aria2_start() {
