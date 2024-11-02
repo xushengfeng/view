@@ -20,6 +20,9 @@ importers:
       electron-store:
         specifier: ^8.1.0
         version: 8.1.0
+      fuse.js:
+        specifier: ^7.0.0
+        version: 7.0.0
       keyv:
         specifier: ^5.1.2
         version: 5.1.2
@@ -1125,6 +1128,10 @@ packages:
 
   function-bind@1.1.1:
     resolution: {integrity: sha512-yIovAzMX49sF8Yl58fSCWJ5svSLuaibPxXQJFLmBObTuCr0Mf1KiPopGM9NiFjiYBCbfaa2Fh6breQ6ANVTI0A==}
+
+  fuse.js@7.0.0:
+    resolution: {integrity: sha512-14F4hBIxqKvD4Zz/XjDc3y94mNZN6pRv3U13Udo0lNLCWRBUsrMv2xwcF/y/Z5sV6+FQW+/ow68cHpm4sunt8Q==}
+    engines: {node: '>=10'}
 
   gauge@4.0.4:
     resolution: {integrity: sha512-f9m+BEN5jkg6a0fZjleidjN51VE1X+mPFQ2DJ0uv1V39oCLCbsGe6yjbBnp7eK7z/+GAon99a3nHuqbuuthyPg==}
@@ -3221,6 +3228,8 @@ snapshots:
 
   function-bind@1.1.1:
     optional: true
+
+  fuse.js@7.0.0: {}
 
   gauge@4.0.4:
     dependencies:

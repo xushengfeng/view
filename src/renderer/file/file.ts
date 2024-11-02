@@ -5,7 +5,10 @@ const path = require("node:path") as typeof import("path");
 
 const { clipboard, shell } = require("electron") as typeof import("electron");
 
-import { check, type ElType, label, pureStyle, txt, view } from "dkh-ui";
+import { check, type ElType, input, label, pureStyle, txt, view } from "dkh-ui";
+
+import type Fuse from "fuse.js";
+import fuse from "fuse.js";
 
 const isWindow = process.platform === "win32";
 let winattr: typeof import("winattr");
@@ -68,6 +71,8 @@ class FileView {
     };
 
     menuList: (keyof typeof this.opra)[] = ["copy", "cut", "paste", "newDir", "rename", "moveToBin", "zip", "unzip"];
+
+    search: Fuse<file> = new fuse([]);
 
     constructor(el: ElType<HTMLElement>, opraEl: ElType<HTMLElement>) {
         this.renderEl = el;
@@ -189,7 +194,9 @@ class FileView {
 
     setPath(p: string) {
         this.nowPath = p;
-        this.#render(this.#entry(p));
+        const l = this.#entry(p);
+        this.#render(l);
+        this.search = new fuse(l, { keys: ["name"] });
     }
 
     // todo 拖拽
@@ -359,6 +366,11 @@ class FileView {
         this.#selectEl();
     }
 
+    filter(f: string) {
+        const l = this.search.search(f);
+        this.#render(l.map((i) => i.item));
+    }
+
     #showOpra() {
         const opraList: (keyof typeof this.opra)[] = [
             "dotdot",
@@ -396,6 +408,13 @@ class FileView {
             return opraEl;
         };
         opraEl.clear().add(opraList.map((i) => createOpraEl(i)));
+        opraEl.add(
+            input("search")
+                .attr({ placeholder: "搜索" })
+                .on("input", (_e, el) => {
+                    this.filter(el.gv);
+                }),
+        );
     }
     focus() {
         this.#showOpra();
