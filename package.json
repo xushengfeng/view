@@ -4,8 +4,8 @@
     "description": "view浏览器",
     "main": "./out/main/main.js",
     "scripts": {
-        "pack": "npm run build && electron-builder --dir",
-        "dist": "npm run build && electron-builder -p never",
+        "pack": "npm run build && electron-builder --dir -c electron-builder.config.js",
+        "dist": "npm run build && electron-builder -p never -c electron-builder.config.js",
         "start": "electron-vite --ignoreConfigWarning preview",
         "dev": "electron-vite --ignoreConfigWarning dev",
         "build": "electron-vite --ignoreConfigWarning build"
@@ -37,70 +37,5 @@
         "electron-vite": "^2.3.0",
         "typescript": "^5.1.6",
         "vite": "^5.4.10"
-    },
-    "build": {
-        "appId": "com.esearch.app",
-        "directories": {
-            "output": "build"
-        },
-        "compression": "maximum",
-        "icon": "./assets/logo",
-        "electronDownload": {
-            "mirror": "https://npmmirror.com/mirrors/electron/"
-        },
-        "npmRebuild": false,
-        "fileAssociations": [
-            {
-                "ext": "html",
-                "mimeType": "text/html",
-                "role": "Editor"
-            }
-        ],
-        "artifactName": "${productName}-${version}-${platform}-${arch}.${ext}",
-        "linux": {
-            "category": "Utility",
-            "target": [
-                "tar.gz",
-                "deb",
-                "rpm",
-                "AppImage"
-            ],
-            "files": [
-                "!.vscode",
-                "!.github",
-                "!assets/logo/icon.icns",
-                "!assets/logo/icon.ico",
-                "!src"
-            ]
-        },
-        "mac": {
-            "files": [
-                "!.vscode",
-                "!.github",
-                "!assets/logo/1024x1024.png",
-                "!assets/logo/512x512.png",
-                "!assets/logo/icon.ico",
-                "!src"
-            ]
-        },
-        "win": {
-            "icon": "./assets/logo/icon.ico",
-            "target": [
-                "nsis",
-                "zip"
-            ],
-            "files": [
-                "!.vscode",
-                "!.github",
-                "!assets/logo/icon.icns",
-                "!assets/logo/1024x1024.png",
-                "!assets/logo/512x512.png",
-                "!src"
-            ]
-        },
-        "nsis": {
-            "oneClick": false,
-            "allowToChangeInstallationDirectory": true
-        }
     }
 }
