@@ -478,7 +478,7 @@ function get_real_url(url: string) {
         return renderer_url(h);
     }
     if (url.startsWith("file://")) {
-        const p = url.replace(/^file:\/\//, "");
+        const p = decodeURIComponent(url.replace(/^file:\/\//, ""));
         try {
             const stat = fs.statSync(p);
             if (stat.isFile()) {
