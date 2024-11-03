@@ -104,7 +104,7 @@ const barStyle = addClass(
 const inactiveStyle = addClass(
     {},
     {
-        ":nth-child(1)": {
+        "&>:nth-child(1)": {
             opacity: 0.5,
         },
     },
