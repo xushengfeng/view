@@ -4,7 +4,7 @@ import type { cardData, syncView, treeItem } from "../../types";
 
 const { ipcRenderer, clipboard } = require("electron") as typeof import("electron");
 import * as path from "node:path";
-import { addClass, button, ele, type ElType, image, input, pureStyle, spacer, txt, view } from "dkh-ui";
+import { addClass, button, type ElType, image, input, pureStyle, spacer, txt, view } from "dkh-ui";
 import store from "../../../lib/store/renderStore";
 
 const setting = store;
@@ -30,8 +30,6 @@ let chrome_size: "normal" | "hide" | "full" = "full";
 const chrome_size_fixed = false;
 
 const userDataPath = new URLSearchParams(location.search).get("userData");
-
-let now_url = "about:blank";
 
 let activeViews: number[] = [];
 const myViews: number[] = [];
@@ -340,7 +338,6 @@ function setChromeSize(type: "normal" | "hide" | "full") {
 }
 
 function setUrl(url: string) {
-    now_url = url;
     urlEl.sv(url);
 
     urlEl.clear();
