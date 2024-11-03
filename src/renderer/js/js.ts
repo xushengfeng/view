@@ -380,7 +380,7 @@ function setUrl(url: string) {
         };
 
         const domain = detail.hostname;
-        const domainEl = txt().style({ color: "#444" }).addInto(urlEl);
+        const domainEl = txt().style({ color: "#444", whiteSpace: "nowrap" }).addInto(urlEl);
         if (domain.split(".")?.length > 2) {
             domainEl.add(
                 domain
@@ -437,7 +437,7 @@ function setUrl(url: string) {
                 l.unshift(h("/"));
             }
             l.at(-1)?.style({ color: "#000" });
-            urlEl.add(view().add(l));
+            urlEl.add(view().style({ whiteSpace: "nowrap" }).add(l));
         }
 
         if (detail.hash) {
