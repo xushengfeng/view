@@ -55,13 +55,14 @@ const treeX = {
         return view as treeItem;
     },
     getPPP: (id: number) => {
+        const ps: number[] = [];
         let v = treeX.get(id);
-        let _id = id;
         while (v.parent !== 0) {
-            v = treeX.get(v.parent);
-            _id = v.parent;
+            const p = treeX.get(v.parent);
+            ps.push(v.parent);
+            v = p;
         }
-        return _id;
+        return ps;
     },
     reload: (id: number) => {
         ipcRenderer.send("tab_view", "reload", id);
@@ -231,8 +232,10 @@ class Card extends HTMLElement {
                 // 若已关闭，超时且挤在倒数几个，则建立新card，否则重启
                 const t = 1000 * 60 * 60 * 12;
                 const proot = treeX.getPPP(this.view_id);
+
                 const rootL = treeX.get(0).next || [];
-                const i = rootL.indexOf(proot);
+                const i = rootL.indexOf(proot.at(-1) ?? Number.NaN);
+
                 if (new Date().getTime() - this.view_id > t && rootL.length - i > 4) {
                     treeX.add(this._url);
                 } else {
