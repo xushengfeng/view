@@ -282,7 +282,7 @@ class FileView {
     copy() {
         let fileList = this.getFullSelect();
         console.log(fileList);
-        fileList = fileList.map((i) => `file://${path.join(this.nowPath, i)}`);
+        fileList = fileList.map((i) => `file://${i}`);
         clipboard.writeText(fileList.join("\n")); // TODO 系统级api
     }
 
@@ -293,16 +293,16 @@ class FileView {
 
     paste() {
         let fileList = clipboard.readText().split("\n");
-        fileList = fileList.map((i) => i.replace("file://", ""));
+        fileList = fileList.map((i) => i.replace(/^file:\/\//, ""));
         // todo 重名检测
         if (isCut) {
             for (const i of fileList) {
-                fs.renameSync(i, path.join(this.nowPath, i));
+                fs.renameSync(i, path.join(this.nowPath, path.basename(i)));
             }
             isCut = false;
         } else {
             for (const i of fileList) {
-                fs.copyFileSync(i, path.join(this.nowPath, i));
+                fs.copyFileSync(i, path.join(this.nowPath, path.basename(i)));
             }
         }
         this.setPath(this.nowPath);
