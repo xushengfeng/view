@@ -146,9 +146,15 @@ async function renderAudio(filePath: string) {
         if (lyrics) {
             showLyric(lyricEl, lyrics, audio);
         } else {
-            // todo 读取文件
-            // else
-            lyricEl.style({ display: "none" });
+            const lyricsFile = `${path.basename(filePath, path.extname(filePath))}.lrc`;
+            const lyricsPath = path.join(path.dirname(filePath), lyricsFile);
+            fs.readFile(lyricsPath, "utf-8", (err, data) => {
+                if (!err && data) {
+                    showLyric(lyricEl, data, audio);
+                } else {
+                    lyricEl.style({ display: "none" });
+                }
+            });
         }
     } catch (error) {
         console.error("Error parsing metadata:", error);
