@@ -5,7 +5,7 @@ const path = require("node:path") as typeof import("path");
 
 const { clipboard, shell } = require("electron") as typeof import("electron");
 
-import { check, ele, type ElType, image, input, label, pureStyle, txt, view } from "dkh-ui";
+import { check, ele, type ElType, image, input, label, pureStyle, select, txt, view } from "dkh-ui";
 
 import type Fuse from "fuse.js";
 import fuse from "fuse.js";
@@ -77,6 +77,26 @@ class FileView {
 
     isHidden = true;
 
+    sortType: {
+        rank: "正序" | "倒序";
+        key: keyof file | "ext";
+    } = {
+        rank: "正序",
+        key: "name",
+    };
+    // todo 记录key对应的顺序
+
+    fileKeyName: Partial<Record<keyof file | "ext", string>> = {
+        name: "文件名",
+        isDirectory: "文件夹",
+        size: "大小",
+        isSymbolicLink: "链接",
+        atime: "上次访问时间",
+        mtime: "上次修改时间",
+        birthtime: "创建时间",
+        ext: "扩展名",
+    };
+
     opra = {
         dotdot: { fun: () => this.dotdot(), icon: getImgUrl("up.svg") },
         reflash: { fun: () => this.reflash(), icon: getImgUrl("reload.svg") },
@@ -137,9 +157,28 @@ class FileView {
     }
 
     #sort(l: file[]) {
-        return l.toSorted((a, b) => {
-            return a.name.localeCompare(b.name, navigator.language, { numeric: true });
-        });
+        let nl = l;
+        const key = this.sortType.key;
+        if (key === "name") {
+            nl = l.toSorted((a, b) => {
+                return a[key].localeCompare(b[key], navigator.language, { numeric: true });
+            });
+        } else if (key === "ext") {
+            nl = l.toSorted((a, b) => {
+                const extA = path.extname(a.name).toLowerCase();
+                const extB = path.extname(b.name).toLowerCase();
+                return extA.localeCompare(extB, navigator.language, { numeric: true });
+            });
+        } else {
+            nl = l.toSorted((a, b) => {
+                return (a[key] as number) - (b[key] as number);
+            });
+        }
+
+        if (this.sortType.rank === "倒序") {
+            return nl.toReversed();
+        }
+        return nl;
     }
 
     #render(directory: file[]) {
@@ -472,6 +511,28 @@ class FileView {
                     this.filter(el.gv);
                 }),
         );
+        const sortReverse = check("倒序").sv(false);
+        opraEl.add(label([sortReverse, "倒序"]));
+        const sortType = select(
+            (["name", "size", "mtime", "atime", "birthtime", "ext"] as const).map((i) => ({
+                value: i,
+                text: this.fileKeyName[i],
+            })),
+        )
+            .sv("name")
+            .addInto(opraEl);
+        const setSort = () => {
+            this.sortType.key = sortType.gv;
+            this.sortType.rank = sortReverse.gv ? "倒序" : "正序";
+            const l = this.#entry(this.nowPath);
+            this.#render(l);
+        };
+        sortReverse.on("change", () => {
+            setSort();
+        });
+        sortType.on("change", () => {
+            setSort();
+        });
     }
     focus() {
         this.#showOpra();
