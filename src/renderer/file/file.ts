@@ -161,7 +161,9 @@ class FileView {
         }
 
         const getTargetUrl = (e: PointerEvent | MouseEvent) => {
-            const eventPath = e.composedPath() as HTMLElement[];
+            const eventPath = (e.composedPath() as HTMLElement[]).filter(
+                (i) => "getAttribute" in i && i.getAttribute("data-path"),
+            );
             let targetPath = ".";
             let isDir = false;
             for (const i of eventPath) {
@@ -178,6 +180,11 @@ class FileView {
         contentEl.el.onclick = (e) => {
             const { targetPath, isDir } = getTargetUrl(e);
             console.log(targetPath);
+            if (targetPath === ".") {
+                this.select = [];
+                this.#selectEl();
+                return;
+            }
             if (e.ctrlKey) {
                 for (const i of this.shiftSelect) {
                     if (!this.select.includes(i)) {
