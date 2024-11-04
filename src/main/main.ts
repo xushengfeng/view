@@ -97,6 +97,10 @@ let aria2_p: ReturnType<typeof spawn>;
 
 let check_global_aria2_run = false;
 
+function log(...params: unknown[]) {
+    if (dev) console.log(...params);
+}
+
 function renderer_url(
     file_name: string,
     q: Electron.LoadFileOptions = {
@@ -286,13 +290,14 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
     winToViewl.get(window_name)?.push(view_id);
     const wc = search_view.webContents;
     const real_url = get_real_url(url);
-    console.log("url", url, real_url);
+    log("create view", url, real_url);
     wc.loadURL(real_url);
     const [w, h] = main_window.getContentSize();
     search_view.setBounds(get_size(w, h));
     main_window.setContentSize(w, h + 1);
     main_window.setContentSize(w, h);
     wc.setWindowOpenHandler(({ url }) => {
+        log("window open", url);
         createView(window_name, url, view_id);
         return { action: "deny" };
     });
@@ -300,23 +305,30 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
     if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "new", url);
     sendViews("update", view_id, undefined, undefined, { url: url });
     wc.on("destroyed", () => {
+        log("view destroyed", view_id);
         main_window.removeBrowserView(search_view);
         viewL.delete(view_id);
     });
     wc.on("page-title-updated", (_event, title) => {
+        log("page title updated", title);
         treeStore.set(view_id, "title", title);
 
         sendViews("update", view_id, undefined, undefined, { title });
     });
     wc.on("page-favicon-updated", (_event, favlogo) => {
+        log("page favicon updated", favlogo[0]);
         treeStore.set(view_id, "logo", favlogo[0]);
         sendViews("update", view_id, undefined, undefined, { icon: favlogo[0] });
     });
     wc.on("will-navigate", (event) => {
-        createView(window_name, event.url, view_id);
-        event.preventDefault();
+        log("will navigate", event.url);
+        if (decodeURIComponent(event.url) !== decodeURIComponent(real_url)) {
+            createView(window_name, event.url, view_id);
+            event.preventDefault();
+        }
     });
     wc.on("did-navigate", (_event, _url) => {
+        log("did navigate", _url);
         if (_url !== real_url) sendViews("update", view_id, undefined, undefined, { url: _url });
         else sendViews("update", view_id, undefined, undefined, { url: url });
     });
@@ -325,6 +337,7 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
             treeStore.set(view_id, "url", url);
             sendViews("update", view_id, undefined, undefined, { url: url });
         }
+        log("did navigate in page", url, isMainFrame);
     });
     wc.on("did-start-loading", () => {
         sendViews("update", view_id, undefined, undefined, { loading: true });
