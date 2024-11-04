@@ -156,7 +156,7 @@ const show_tree = iconEl("reload").on("click", () => {
 
 buttons.add([b_reload, show_tree]);
 
-view().add([buttons, urlEl, system_el]).addInto().attr({ id: "bar" });
+const barEl = view().add([buttons, urlEl, system_el]).addInto().attr({ id: "bar" });
 
 const searchListEl = view().attr({ id: "search_list" }).addInto();
 urlEl.on("contextmenu", (e) => {
@@ -333,7 +333,12 @@ function setChromeSize(type: "normal" | "hide" | "full") {
         searchListEl.clear();
     }
     if (type === "hide") {
+        // @ts-ignore
+        barEl.style({ "-webkit-app-region": "no-drag" });
         treePel.style({ display: "none" });
+    } else {
+        // @ts-ignore
+        barEl.style({ "-webkit-app-region": "drag" });
     }
     chrome_size = type;
 }
