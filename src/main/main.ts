@@ -844,6 +844,18 @@ app.whenReady().then(() => {
                         }
                     },
                 },
+                {
+                    label: t("导航"),
+                    accelerator: "CmdOrCtrl+tab",
+                    click(_i, w) {
+                        for (const i of winL) {
+                            if (i[1] === w) {
+                                winToChrome.get(i[0])?.view.webContents.send("win", "tree");
+                                break;
+                            }
+                        }
+                    },
+                },
                 { label: t("最小化"), role: "minimize" },
                 { label: t("关闭"), role: "close" },
                 ...(isMac

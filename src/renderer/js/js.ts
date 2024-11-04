@@ -637,6 +637,15 @@ function renderTree(i: number) {
     treeEl.el.scrollLeft = treeEl.el.scrollWidth - treeEl.el.offsetWidth;
 }
 
+function showTree(b: boolean) {
+    if (b) {
+        setChromeSize("full");
+        renderTree(treeIndex);
+    } else {
+        setChromeSize("hide");
+    }
+}
+
 function getCardById(id: number) {
     return document.querySelector(`[data-id="${id}"]`) as Card;
 }
@@ -830,6 +839,9 @@ ipcRenderer.on("win", (_e, a, arg) => {
             } else if (chrome_size === "normal") {
                 setChromeSize("hide");
             }
+            break;
+        case "tree":
+            showTree(treePel.el.style.display === "none");
             break;
     }
 });
