@@ -101,6 +101,14 @@ const barStyle = addClass(
     {},
 );
 
+const barStyle2 = addClass(
+    {
+        boxShadow: "var(--shadow)",
+        borderRadius: "8px",
+    },
+    {},
+);
+
 const inactiveStyle = addClass(
     {},
     {
@@ -158,7 +166,18 @@ buttons.add([b_reload, show_tree]);
 
 const barEl = view().add([buttons, urlEl, system_el]).addInto().attr({ id: "bar" });
 
-const searchListEl = view().attr({ id: "search_list" }).addInto();
+const searchListEl = view()
+    .style({
+        position: "absolute",
+        zIndex: 1,
+        maxHeight: "320px",
+        overflowY: "auto",
+        left: "48px",
+        top: "24px",
+        width: "calc(100vw - 48px * 2)",
+    })
+    .class(barStyle, barStyle2)
+    .addInto();
 urlEl.on("contextmenu", (e) => {
     if ((e.target as HTMLElement).tagName === "INPUT") return;
     e.preventDefault();
@@ -559,7 +578,7 @@ function search(str: string) {
 }
 
 function addSearchItem(i: searchListT[0]) {
-    const el = view().data({ url: i.url });
+    const el = view("x").data({ url: i.url });
     const icon_el = view().add(image(i.icon, "icon").class("icon"));
     const text = view().add(i.text);
     el.add([icon_el, text]);

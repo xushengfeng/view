@@ -58,24 +58,6 @@ body {
     height: 16px;
 }
 
-#search_list {
-    -webkit-app-region: no-drag;
-}
-#search_list > div {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-}
-#search_list > div > div:has(.icon) {
-    position: relative;
-    width: 16px;
-    height: 16px;
-}
-#search_list > div > div > .icon {
-    width: 16px;
-    height: 16px;
-}
-
 #menu {
     position: fixed;
     background-color: var(--bg);
