@@ -3,10 +3,7 @@ const path = require("node:path") as typeof import("path");
 const fs = require("node:fs") as typeof import("fs");
 const rootDirL = __dirname.split(path.sep);
 const outDir = rootDirL.lastIndexOf("out");
-const rootDir = path.join(
-    rootDirL.slice(0, outDir).join(path.sep),
-    "./lib/translate",
-);
+const rootDir = path.join(rootDirL.slice(0, outDir).join(path.sep), "./lib/translate");
 
 let language = "";
 
@@ -28,10 +25,8 @@ function matchFitLan(lan: string, lanList: string[], defaultLan = "zh-HANS") {
         "zh-HK": "zh-HANT",
     };
     const supportLan = lanList.map((i) => zhMap[i] || i);
-    const mainLan = lan.split("-")[0];
-    const filterLans = supportLan.filter(
-        (i) => i.startsWith(`${mainLan}-`) || i === mainLan,
-    );
+    const mainLan = lan?.split("-")[0] || "";
+    const filterLans = supportLan.filter((i) => i.startsWith(`${mainLan}-`) || i === mainLan);
     if (filterLans.length === 0) return defaultLan;
     if (filterLans.includes(lan)) return lan;
     return filterLans[0];
@@ -63,19 +58,12 @@ function st(text: string, map: typeof l) {
     const id = source[text];
     const t = map[id];
     if (!id) console.log(`%c"${text}":"",`, "color:#f00;background:#fdd");
-    else if (!t)
-        console.log(
-            `%c${id}%c: ${text}`,
-            "color:bluecolor:#00f;background:#ddf",
-            "",
-        );
+    else if (!t) console.log(`%c${id}%c: ${text}`, "color:bluecolor:#00f;background:#ddf", "");
     return t || text;
 }
 function tLan(text: string, lan: string) {
     if (parseLan(lan) === "zh-HANS") return text;
-    const map = require(
-        path.join(rootDir, `./${parseLan(lan)}.json`),
-    ) as typeof l;
+    const map = require(path.join(rootDir, `./${parseLan(lan)}.json`)) as typeof l;
     return st(text, map);
 }
 
@@ -86,11 +74,7 @@ function getLans() {
     const lans = fs
         .readdirSync(rootDir)
         .filter((file) => {
-            return (
-                file.endsWith(".json") &&
-                !file.startsWith("source") &&
-                !file.startsWith(".")
-            );
+            return file.endsWith(".json") && !file.startsWith("source") && !file.startsWith(".");
         })
         .map((l) => l.replace(".json", ""));
     return ["zh-HANS"].concat(lans);
