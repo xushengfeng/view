@@ -566,15 +566,16 @@ function search(str: string) {
     // todo enter
     // todo 上下方向键导航
 
-    fetch(suggestions_url.replace("%s", encodeURIComponent(str)))
-        .then((j) => j.json())
-        .then((j) => {
-            if (j[1]) {
-                for (const s of j[1]) {
-                    addSearchItem({ url: to_search_url(s), text: s, icon: search_svg });
+    if (u)
+        fetch(suggestions_url.replace("%s", encodeURIComponent(str)))
+            .then((j) => j.json())
+            .then((j) => {
+                if (j[1]) {
+                    for (const s of j[1]) {
+                        addSearchItem({ url: to_search_url(s), text: s, icon: search_svg });
+                    }
                 }
-            }
-        });
+            });
 }
 
 function addSearchItem(i: searchListT[0]) {
