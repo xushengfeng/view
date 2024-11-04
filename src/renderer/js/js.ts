@@ -594,7 +594,9 @@ function renderTree(i: number) {
     const treeContent = view("x").style({ flexDirection: "row-reverse" }).addInto(treeEl);
     for (const i of rootSlice) {
         const x = createCard(i);
-        treeContent.add(view().add(x).style({ maxHeight: "100%", overflowY: "scroll", overflowX: "hidden" }));
+        treeContent.add(
+            view().add(x).style({ maxHeight: "100%", overflowY: "scroll", overflowX: "hidden", padding: "4px" }),
+        );
     }
     if (i > 0) {
         treeEl.add(
