@@ -252,6 +252,8 @@ class FileView {
         const l = this.#entry(p);
         this.#render(l);
         this.search = new fuse(l, { keys: ["name"] });
+
+        document.title = path.basename(p);
     }
 
     // todo 拖拽
