@@ -1,6 +1,6 @@
 {
     "name": "view",
-    "version": "126.0.0",
+    "version": "126.0.1",
     "description": "view浏览器",
     "main": "./out/main/main.js",
     "scripts": {
