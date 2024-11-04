@@ -283,19 +283,24 @@ function showLyric(el: ElType<HTMLElement>, lyrics: string, audio: HTMLAudioElem
         l.push({ time: mainT * 1000 + Number(nt[1]), text: text.trim() });
     }
 
+    const spaceEl = () => view().style({ height: "50%", width: "1px", flexShrink: 0 });
+    el.add(spaceEl());
     el.add(
-        l.map((v) =>
-            p(v.text).on("click", () => {
-                audio.currentTime = v.time / 1000;
-            }),
+        l.map((v, i) =>
+            p(v.text)
+                .on("click", () => {
+                    audio.currentTime = v.time / 1000;
+                })
+                .data({ i: String(i) }),
         ),
     );
+    el.add(spaceEl());
     const nowLyricClass = addClass({ background: "#ddd" }, {});
     audio.addEventListener("timeupdate", () => {
         const t = audio.currentTime * 1000;
         const lyric = l.findLastIndex((x) => x.time <= t);
         const oldEl = el.query(`.${nowLyricClass}`)?.el;
-        const newEl = el.query(`:nth-child(${lyric + 1})`)?.el;
+        const newEl = el.query(`[data-i="${lyric}"]`)?.el;
         if (oldEl !== newEl) {
             oldEl?.classList.remove(nowLyricClass);
             newEl?.classList.add(nowLyricClass);
