@@ -244,20 +244,13 @@ class Card extends HTMLElement {
 
         this.setAttribute("data-id", this.view_id.toString());
 
-        img.on("click", () => {
+        img.on("click", (e) => {
             // 切换到活跃标签页
             if (activeViews.includes(this.view_id)) {
                 treeX.switch(this.view_id);
                 topestView = this.view_id;
             } else {
-                // 若已关闭，超时且挤在倒数几个，则建立新card，否则重启
-                const t = 1000 * 60 * 60 * 12;
-                const proot = treeX.getPPP(this.view_id);
-
-                const rootL = treeX.get(0).next || [];
-                const i = rootL.indexOf(proot.at(-1) ?? Number.NaN);
-
-                if (new Date().getTime() - this.view_id > t && rootL.length - i > 4) {
+                if (e.ctrlKey) {
                     treeX.add(this._url);
                 } else {
                     treeX.restart(this.view_id);
