@@ -60,6 +60,7 @@ const treeX = {
             ps.push(v.parent);
             v = p;
         }
+        if (ps.length === 0) return [id];
         return ps;
     },
     reload: (id: number) => {
