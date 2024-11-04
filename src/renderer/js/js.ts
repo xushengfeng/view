@@ -26,8 +26,11 @@ function iconEl(name: string) {
 
 const pid = Number(new URLSearchParams(location.search).get("id"));
 
-let chrome_size: "normal" | "hide" | "full" = "full";
-const chrome_size_fixed = false;
+let chromeSize: "normal" | "hide" | "full" = "full";
+const chromeSizeFixed: "unfixed" | "fixed" | "fixedSizing" = "unfixed";
+
+let windowMax = false;
+let windowFullScreen = false;
 
 const userDataPath = new URLSearchParams(location.search).get("userData");
 
@@ -345,21 +348,23 @@ function setChromeSize(type: "normal" | "hide" | "full") {
     // todo menu等禁止hide
 
     let t = type;
-    if (type === "hide" && chrome_size_fixed) t = "normal";
+    if (type === "hide" && (chromeSizeFixed !== "unfixed" || (!windowMax && !windowFullScreen))) t = "normal";
     ipcRenderer.send("win", pid, `${t}_chrome`);
 
     if (type === "normal") {
         searchListEl.clear();
     }
-    if (type === "hide") {
+    if (t !== "full") {
+        treePel.style({ display: "none" });
+    }
+    if (t === "hide") {
         // @ts-ignore
         barEl.style({ "-webkit-app-region": "no-drag" });
-        treePel.style({ display: "none" });
     } else {
         // @ts-ignore
         barEl.style({ "-webkit-app-region": "drag" });
     }
-    chrome_size = type;
+    chromeSize = type;
 }
 
 function setUrl(url: string) {
@@ -654,7 +659,7 @@ function cardAdd(id: number, parent: number) {
     activeViews.push(id);
     topestView = id;
     myViews.push(id);
-    if (chrome_size !== "full") setChromeSize("normal");
+    if (chromeSize !== "full") setChromeSize("normal");
     const pCardEl = getCardById(parent);
     if (pCardEl) {
         const x = createCard(id);
@@ -666,7 +671,7 @@ function cardRestart(id: number) {
     activeViews.push(id);
     topestView = id;
     myViews.push(id);
-    if (chrome_size !== "full") setChromeSize("normal");
+    if (chromeSize !== "full") setChromeSize("normal");
     const cardEl = getCardById(id);
     cardEl.active(true);
 }
@@ -821,9 +826,13 @@ ipcRenderer.on("win", (_e, a, arg) => {
     switch (a) {
         case "max":
             w_max.clear().add(icon("unmaximize"));
+            windowMax = true;
+            setChromeSize(chromeSize);
             break;
         case "unmax":
             w_max.clear().add(icon("maximize"));
+            windowMax = false;
+            setChromeSize(chromeSize);
             break;
         case "menu":
             console.log(arg);
@@ -834,14 +843,22 @@ ipcRenderer.on("win", (_e, a, arg) => {
             // TODO show
             break;
         case "chrome_toggle":
-            if (chrome_size === "hide") {
+            if (chromeSize === "hide") {
                 setChromeSize("normal");
-            } else if (chrome_size === "normal") {
+            } else if (chromeSize === "normal") {
                 setChromeSize("hide");
             }
             break;
         case "tree":
             showTree(treePel.el.style.display === "none");
+            break;
+        case "fullscreen":
+            windowFullScreen = true;
+            setChromeSize(chromeSize);
+            break;
+        case "leave-fullscreen":
+            windowFullScreen = false;
+            setChromeSize(chromeSize);
             break;
     }
 });

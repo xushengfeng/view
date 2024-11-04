@@ -193,6 +193,12 @@ async function createWin() {
     main_window.on("unmaximize", () => {
         chrome.webContents.send("win", "unmax");
     });
+    main_window.on("enter-full-screen", () => {
+        chrome.webContents.send("win", "fullscreen");
+    });
+    main_window.on("leave-full-screen", () => {
+        chrome.webContents.send("win", "leave-fullscreen");
+    });
 
     const chrome = new BrowserView({
         webPreferences: {
@@ -208,6 +214,7 @@ async function createWin() {
     main_window.addBrowserView(chrome);
     winToChrome.set(window_name, { view: chrome, size: "full" });
     setChromeSize(window_name);
+    chrome.webContents.send("win", store.get("appearance.size.normal.m") ? "max" : "unmax");
 
     return window_name;
 }
