@@ -13,6 +13,8 @@ function icon(src: string) {
     return image(getImgUrl(`${src}.svg`), "icon").class("icon");
 }
 
+const secondColor = "#ccc";
+
 const main = view().style({ width: "100vw", height: "100vh" }).addInto();
 
 function mainRenderer(filePath: string) {
@@ -84,9 +86,9 @@ async function renderAudio(filePath: string) {
         .addInto(main);
     const left = view("y")
         .addInto(music)
-        .style({ minWidth: "320px", margin: "16px 0", alignItems: "center", justifyContent: "center" });
+        .style({ minWidth: "320px", margin: "16px 0", alignItems: "center", justifyContent: "center", gap: "8px" });
     const pictureEl = view().style({ width: "240px", height: "240px" }).addInto(left);
-    const nameEl = txt().addInto(left);
+    const nameEl = txt().style({ fontSize: "1.4em" }).addInto(left);
     const nameEl2 = txt().addInto(left);
     const artistEl = txt().addInto(nameEl2);
     nameEl2.add(" - ");
@@ -112,10 +114,6 @@ async function renderAudio(filePath: string) {
             addClass(
                 {},
                 {
-                    "&>*": {
-                        padding: "8px",
-                        borderRadius: "8px",
-                    },
                     "&::-webkit-scrollbar": {
                         display: "none",
                     },
@@ -185,7 +183,7 @@ function processEl(media: HTMLMediaElement) {
         })
         .sv(0);
     const processEl = view("x")
-        .style({ width: "100%", transition: "0.4s", backgroundColor: "#ddd", borderRadius: "8px" })
+        .style({ width: "100%", transition: "0.4s", backgroundColor: secondColor, borderRadius: "8px" })
         .class(
             addClass(
                 {
@@ -291,11 +289,16 @@ function showLyric(el: ElType<HTMLElement>, lyrics: string, audio: HTMLAudioElem
                 .on("click", () => {
                     audio.currentTime = v.time / 1000;
                 })
-                .data({ i: String(i) }),
+                .data({ i: String(i) })
+                .style({
+                    padding: "8px",
+                    color: secondColor,
+                    transition: "var(--transition)",
+                }),
         ),
     );
     el.add(spaceEl());
-    const nowLyricClass = addClass({ background: "#ddd" }, {});
+    const nowLyricClass = addClass({ color: "#000 !important" }, {});
     audio.addEventListener("timeupdate", () => {
         const t = audio.currentTime * 1000;
         const lyric = l.findLastIndex((x) => x.time <= t);
