@@ -142,7 +142,7 @@ async function renderAudio(filePath: string) {
             pictureEl.add(image(`data:${cover.format};base64,${base64}`, "封面").style({ width: "100%" }));
         }
 
-        const lyrics = metadata.common.lyrics?.[0].text;
+        const lyrics = metadata.common.lyrics?.[0].text ?? (metadata.common.lyrics?.[0] as unknown as string); // todo
         if (lyrics) {
             showLyric(lyricEl, lyrics, audio);
         } else {
