@@ -5,7 +5,7 @@ const path = require("node:path") as typeof import("path");
 
 const { clipboard, shell } = require("electron") as typeof import("electron");
 
-import { check, type ElType, input, label, pureStyle, txt, view } from "dkh-ui";
+import { check, ele, type ElType, image, input, label, pureStyle, txt, view } from "dkh-ui";
 
 import type Fuse from "fuse.js";
 import fuse from "fuse.js";
@@ -35,13 +35,34 @@ let nowFileIndex = 0;
 
 let isCut = false;
 
+let willShowMenu = false;
+
 const opraEl = view().attr({ id: "opra" }).addInto();
+const menuEl = view().style({ position: "fixed", margin: 0 }).addInto();
+menuEl.el.popover = "auto";
 const contentEl = view().attr({ id: "content" }).addInto();
 
 pureStyle();
 
+document.body.addEventListener("pointerup", (e) => {
+    if (willShowMenu) {
+        menuEl.el.showPopover();
+        willShowMenu = false;
+    }
+});
+
 async function prompt(text: string) {
     return "";
+}
+
+function showMenu(x: number, y: number) {
+    menuEl
+        .clear()
+        .style({ left: `${x}px`, top: `${y}px` })
+        .on("click", () => {
+            menuEl.el.hidePopover();
+        });
+    willShowMenu = true;
 }
 
 class FileView {
@@ -49,6 +70,7 @@ class FileView {
     nowPath = "/";
 
     opraEl: ElType<HTMLElement>;
+    menuEl: ElType<HTMLElement> = view();
 
     select: string[] = [];
     shiftSelect: string[] = [];
@@ -138,7 +160,7 @@ class FileView {
             if (i.isHidden) iEl.class("hidden");
         }
 
-        contentEl.el.onclick = (e) => {
+        const getTargetUrl = (e: PointerEvent | MouseEvent) => {
             const eventPath = e.composedPath() as HTMLElement[];
             let targetPath = ".";
             let isDir = false;
@@ -149,6 +171,12 @@ class FileView {
                     break;
                 }
             }
+            console.log(targetPath);
+            return { targetPath, isDir };
+        };
+
+        contentEl.el.onclick = (e) => {
+            const { targetPath, isDir } = getTargetUrl(e);
             console.log(targetPath);
             if (e.ctrlKey) {
                 for (const i of this.shiftSelect) {
@@ -179,6 +207,26 @@ class FileView {
                     console.log(targetPath);
                     window.open(`file://${path.join(this.nowPath, targetPath)}`);
                 }
+            }
+        };
+        contentEl.el.oncontextmenu = (e) => {
+            e.preventDefault();
+            showMenu(e.clientX, e.clientY);
+            const targetPath = getTargetUrl(e).targetPath;
+            if (!this.select.includes(targetPath)) {
+                this.select = [targetPath];
+                this.#selectEl(this.select);
+            }
+            for (const i of this.menuList) {
+                const fun = this.opra[i].fun;
+                menuEl.add(
+                    view("x")
+                        .add([image(this.opra[i].icon, `${i} icon`).style({ width: "24px" }), i])
+                        .on("click", () => {
+                            // @ts-ignore
+                            fun();
+                        }),
+                );
             }
         };
     }
