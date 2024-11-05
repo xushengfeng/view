@@ -55,6 +55,7 @@ type treeItem = {
     logo: string;
     parent: number;
     next?: number[];
+    visits: number[];
 };
 
 type syncView = "add" | "close" | "update" | "move" | "restart";

@@ -39,6 +39,8 @@ type bwin_id = number & { readonly __tag: unique symbol };
 // 一个browserview对应一个id，不存在history
 /** 网页id（包括在同一页面跳转的） */
 type view_id = number & { readonly __tag: unique symbol };
+/** 访问id 包括新建、重启、刷新 */
+type VisitId = number & { readonly __tag: unique symbol };
 const winL: Map<bwin_id, BrowserWindow> = new Map();
 // 不同的view分配到窗口
 const winToViewl: Map<bwin_id, view_id[]> = new Map();
@@ -48,26 +50,25 @@ const winToPasswd: Map<BrowserWindow, BrowserView> = new Map();
 
 const permissionCb = new Map<view_id, Map<string, (isGranted: boolean) => void>>();
 
-const keyvSqlite = new KeyvSqlite(`sqlite://${app.getPath("userData")}/text.sqlite`);
-const treeTextKeyv = new Keyv({ store: keyvSqlite });
+const keyvSqlite = new KeyvSqlite(`sqlite://${app.getPath("userData")}/visit.sqlite`);
+const treeVisitKeyv = new Keyv({ store: keyvSqlite });
 const keyvSqlite1 = new KeyvSqlite(`sqlite://${app.getPath("userData")}/tree.sqlite`);
 const treeKeyv = new Keyv({ store: keyvSqlite1 });
 const keyvSqlite2 = new KeyvSqlite(`sqlite://${app.getPath("userData")}/name.sqlite`);
 const nameKeyv = new Keyv({ store: keyvSqlite2 });
 
-const tree_text_store = {
-    set: (id: view_id, value: string) => {
-        // todo: local storage
-        // todo yjs sync
-        return treeTextKeyv.set(String(id), value);
+const visitStore = {
+    set: (id: VisitId, view: view_id, value: string) => {
+        // todo 追加
+        // todo 同view之间diff压缩
+        return treeVisitKeyv.set(String(id), { view: String(view), text: value });
     },
-    get: (id: view_id) => {
-        return treeTextKeyv.get(String(id));
+    get: (id: VisitId) => {
+        return treeVisitKeyv.get(String(id));
     },
 };
 const treeStore = {
     set: async (id: view_id, key: keyof treeItem, value) => {
-        // todo: local storage
         // todo yjs sync
         const data = (await treeKeyv.get(String(id))) || {};
         data[key] = value;
@@ -271,8 +272,12 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
     if (!main_window || !chrome) return;
 
     const view_id = id ?? (new Date().getTime() as view_id);
+    const visitId = new Date().getTime() as VisitId;
 
     treeStore.set(view_id, "url", url);
+    const visits = (await treeStore.get(view_id)).visits || [];
+    visits.push(visitId);
+    treeStore.set(view_id, "visits", visits);
 
     const op: Electron.BrowserViewConstructorOptions = {
         webPreferences: {
@@ -378,7 +383,7 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
     wc.on("did-finish-load", async () => {
         save_pic();
 
-        tree_text_store.set(view_id, await wc.executeJavaScript("document.body.innerText"));
+        visitStore.set(visitId, view_id, await wc.executeJavaScript("document.body.innerText"));
 
         if (url.startsWith("view://download")) {
             if (aria2_port) {
