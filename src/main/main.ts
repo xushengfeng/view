@@ -275,7 +275,7 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
     const visitId = new Date().getTime() as VisitId;
 
     treeStore.set(view_id, "url", url);
-    const visits = (await treeStore.get(view_id)).visits || [];
+    const visits = (await treeStore.get(view_id))?.visits || [];
     visits.push(visitId);
     treeStore.set(view_id, "visits", visits);
 
