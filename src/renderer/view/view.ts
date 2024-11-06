@@ -98,10 +98,6 @@ async function renderAudio(filePath: string) {
 
     const playBtn = playButton(audio);
 
-    audio.onloadedmetadata = () => {
-        audio.play();
-    };
-
     controlsEl.add([processEl(audio).style({ width: "320px" }), playBtn]);
     // todo 音量调节
     // todo loop
@@ -154,8 +150,24 @@ async function renderAudio(filePath: string) {
                 }
             });
         }
+
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: nameEl.gv,
+            artist: artistEl.gv,
+            album: albumEl.gv,
+            artwork: [{ src: pictureEl.query("img")?.el.src || "" }],
+        });
+        navigator.mediaSession.setActionHandler("play", () => {
+            audio.play();
+        });
+        navigator.mediaSession.setActionHandler("pause", () => {
+            audio.pause();
+        });
+
+        audio.play();
     } catch (error) {
         console.error("Error parsing metadata:", error);
+        audio.play();
     }
 }
 
