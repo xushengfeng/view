@@ -308,8 +308,21 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
     search_view.setBounds(get_size(w, h));
     main_window.setContentSize(w, h + 1);
     main_window.setContentSize(w, h);
-    wc.setWindowOpenHandler(({ url }) => {
-        log("window open", url);
+    wc.setWindowOpenHandler(({ url, disposition }) => {
+        // todo 识别更多类型，比如登录验证
+        log("window open", url, disposition);
+        if (disposition === "other") {
+            // todo picture in picture?
+            return {
+                action: "allow",
+                createWindow(options) {
+                    console.log(options);
+
+                    const b = new BrowserWindow(options);
+                    return b.webContents;
+                },
+            };
+        }
         createView(window_name, url, view_id);
         return { action: "deny" };
     });
