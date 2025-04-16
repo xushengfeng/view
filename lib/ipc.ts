@@ -2,7 +2,7 @@
 const { ipcRenderer, ipcMain} = require("electron") as typeof import("electron");
 
 import type { Display, MessageBoxSyncOptions, NativeTheme, OpenDialogOptions } from "electron";
-import type { bwin_id, setting, treeItem, view_id } from "../src/types";
+import type { bwin_id, cardData, setting, treeItem, view_id } from "../src/types";
 
 type Equals<X, Y> = (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2 ? true : false;
 
@@ -29,6 +29,11 @@ type Message = {
         vid: view_id,
         op: { type: string; allow: boolean }, // todo
     ) => void;
+    viewSAdd: (vid: view_id, pid: view_id) => void;
+    viewSRestart: (vid: view_id) => void;
+    viewSClose: (vid: view_id) => void;
+    viewSUpdate: (vid: view_id, op: cardData) => void;
+    viewSMove: (vid: view_id, win: bwin_id) => void;
     addOpensearch: (o: setting["searchEngine"]["engine"]) => void;
     input: (o: {
         action: "focus" | "blur";
@@ -40,6 +45,14 @@ type Message = {
         username?: string;
         passwd?: string;
     }) => void;
+    chromeState: (state: "max" | "unmax") => void;
+    showMenu: (arg: Electron.ContextMenuParams) => void;
+    zoom: (level: number) => void;
+    chorme: () => void;
+    toggleTree: () => void;
+    fullScreen: (p: boolean) => void;
+    siteAbout: (p: string, url: string, id: view_id) => void;
+    urlTip: (url: string) => void;
 };
 
 const name = "ipc";

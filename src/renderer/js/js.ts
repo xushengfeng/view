@@ -2,7 +2,7 @@
 
 import type { bwin_id, cardData, syncView, treeItem, view_id } from "../../types";
 
-const { ipcRenderer, clipboard } = require("electron") as typeof import("electron");
+const { clipboard } = require("electron") as typeof import("electron");
 import * as path from "node:path";
 import { addClass, button, type ElType, image, input, pureStyle, spacer, txt, view } from "dkh-ui";
 import store from "../../../lib/store/renderStore";
@@ -12,7 +12,7 @@ const setting = store;
 import browser_svg from "../assets/icons/browser.svg";
 import search_svg from "../assets/icons/search.svg";
 import { add } from "node-7z";
-import { renderSend, renderSendSync } from "../../../lib/ipc";
+import { renderOn, renderSend, renderSendSync } from "../../../lib/ipc";
 
 pureStyle();
 
@@ -818,74 +818,56 @@ function render_site_permission_requ(id: view_id) {
     permissionEl.add([t, lel]);
 }
 
-ipcRenderer.on("win", (_e, a, arg) => {
-    switch (a) {
-        case "max":
-            w_max.clear().add(icon("unmaximize"));
-            windowMax = true;
-            setChromeSize(chromeSize);
-            break;
-        case "unmax":
-            w_max.clear().add(icon("maximize"));
-            windowMax = false;
-            setChromeSize(chromeSize);
-            break;
-        case "menu":
-            console.log(arg);
-            menu(arg);
-            break;
-        case "zoom":
-            console.log(arg);
-            // TODO show
-            break;
-        case "chrome_toggle":
-            if (chromeSize === "hide") {
-                setChromeSize("normal");
-            } else if (chromeSize === "normal") {
-                setChromeSize("hide");
-            }
-            break;
-        case "tree":
-            showTree(treePel.el.style.display === "none");
-            break;
-        case "fullscreen":
-            windowFullScreen = true;
-            setChromeSize(chromeSize);
-            break;
-        case "leave-fullscreen":
-            windowFullScreen = false;
-            setChromeSize(chromeSize);
-            break;
+renderOn("chromeState", ([t]) => {
+    if (t === "max") {
+        w_max.clear().add(icon("unmaximize"));
+        windowMax = true;
+        setChromeSize(chromeSize);
+    }
+    if (t === "unmax") {
+        w_max.clear().add(icon("maximize"));
+        windowMax = false;
+        setChromeSize(chromeSize);
+    }
+});
+
+renderOn("showMenu", ([arg]) => {
+    console.log(arg);
+    menu(arg);
+});
+renderOn("zoom", ([l]) => {
+    console.log(l);
+});
+renderOn("chorme", () => {
+    if (chromeSize === "hide") {
+        setChromeSize("hide");
+    } else if (chromeSize === "normal") {
+        setChromeSize("normal");
+    }
+});
+renderOn("toggleTree", () => {
+    showTree(treePel.el.style.display === "none");
+});
+renderOn("fullScreen", ([p]) => {
+    if (p) {
+        windowFullScreen = true;
+        setChromeSize(chromeSize);
+    } else {
+        windowFullScreen = false;
+        setChromeSize(chromeSize);
     }
 });
 
 init_search();
 
 // 同步树状态
-ipcRenderer.on("view", (_e, type: syncView, id: view_id, pid: number, wid: number, op) => {
-    console.log(type, id, pid, wid, op);
-    switch (type) {
-        case "add":
-            cardAdd(id, pid);
-            break;
-        case "restart":
-            cardRestart(id);
-            break;
-        case "close":
-            cardClose(id);
-            break;
-        case "update":
-            cardUpdata(id, op);
-            break;
-        case "move":
-            cardMove(id, wid);
-            break;
-        default:
-            break;
-    }
-});
+renderOn("viewSAdd", ([id, pid]) => cardAdd(id, pid));
+renderOn("viewSRestart", ([id]) => cardRestart(id));
+renderOn("viewSClose", ([id]) => cardClose(id));
+renderOn("viewSUpdate", ([id, op]) => cardUpdata(id, op));
+renderOn("viewSMove", ([id, win]) => cardMove(id, win));
 
-ipcRenderer.on("site_about", (_e, p, url, id) => {
+renderOn("siteAbout", ([p, url, id]) => {
     console.log("permission", url, id, p);
 
     setChromeSize("full");

@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { setting } from "../types";
-import { renderSend } from "../../lib/ipc";
+import { renderOn, renderSend } from "../../lib/ipc";
 
 contextBridge.exposeInMainWorld("electron", {});
 
@@ -69,22 +69,18 @@ function get_opensearch() {
     }
 }
 
-ipcRenderer.on("view_event", (_e, type, arg) => {
-    switch (type) {
-        case "target_url":
-            if (window.top !== window) return;
-            status_bar.style.maxWidth = "50vw";
-            if (status_bar_t1) clearTimeout(status_bar_t1);
-            status_bar_t1 = setTimeout(() => {
-                status_bar.style.maxWidth = "90vw";
-            }, 1000);
-            if (arg === "") {
-                status_bar.style.opacity = "0";
-            } else {
-                status_bar.style.opacity = "1";
-                status_bar.innerText = decodeURIComponent(arg);
-            }
-            break;
+renderOn("urlTip", ([url]) => {
+    if (window.top !== window) return;
+    status_bar.style.maxWidth = "50vw";
+    if (status_bar_t1) clearTimeout(status_bar_t1);
+    status_bar_t1 = setTimeout(() => {
+        status_bar.style.maxWidth = "90vw";
+    }, 1000);
+    if (url === "") {
+        status_bar.style.opacity = "0";
+    } else {
+        status_bar.style.opacity = "1";
+        status_bar.innerText = decodeURIComponent(url);
     }
 });
 

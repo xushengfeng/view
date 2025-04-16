@@ -20,7 +20,7 @@ import * as fs from "node:fs";
 import { t, lan, getLans, matchFitLan } from "../../lib/translate/translate";
 import url from "node:url";
 import type { setting, DownloadItem, cardData, syncView, treeItem, bwin_id, view_id, VisitId } from "../types";
-import { mainOn } from "../../lib/ipc";
+import { mainOn, mainSend, renderSend } from "../../lib/ipc";
 const Keyv = require("keyv").default as typeof import("keyv").default;
 const KeyvSqlite = require("@keyv/sqlite").default as typeof import("@keyv/sqlite").default;
 
@@ -183,16 +183,16 @@ async function createWin() {
     });
 
     main_window.on("maximize", () => {
-        chrome.webContents.send("win", "max");
+        mainSend(chrome.webContents, "chromeState", ["max"]);
     });
     main_window.on("unmaximize", () => {
-        chrome.webContents.send("win", "unmax");
+        mainSend(chrome.webContents, "chromeState", ["unmax"]);
     });
     main_window.on("enter-full-screen", () => {
-        chrome.webContents.send("win", "fullscreen");
+        mainSend(chrome.webContents, "fullScreen", [true]);
     });
     main_window.on("leave-full-screen", () => {
-        chrome.webContents.send("win", "leave-fullscreen");
+        mainSend(chrome.webContents, "fullScreen", [false]);
     });
 
     const chrome = new BrowserView({
@@ -209,7 +209,7 @@ async function createWin() {
     main_window.addBrowserView(chrome);
     winToChrome.set(window_name, { view: chrome, size: "full" });
     setChromeSize(window_name);
-    chrome.webContents.send("win", store.get("appearance.size.normal.m") ? "max" : "unmax");
+    mainSend(chrome.webContents, "chromeState", [store.get("appearance.size.normal.m") ? "max" : "unmax"]);
 
     return window_name;
 }
@@ -421,7 +421,7 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
     });
 
     wc.on("context-menu", (_e, p) => {
-        if (!chrome.webContents.isDestroyed()) chrome.webContents.send("win", "menu", p);
+        if (!chrome.webContents.isDestroyed()) mainSend(chrome.webContents, "showMenu", [p]);
     });
 
     wc.session.on("will-download", (e, i) => {
@@ -447,7 +447,7 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
     });
 
     wc.on("update-target-url", (_e, url) => {
-        wc.send("view_event", "target_url", url);
+        mainSend(wc, "urlTip", [url]);
     });
 
     wc.on("devtools-open-url", (_e, url) => {
@@ -459,7 +459,7 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
         let x = l + (d === "in" ? 0.1 : -0.1);
         x = Math.min(5, Math.max(0.2, x));
         wc.setZoomFactor(x);
-        chrome.webContents.send("win", "zoom", x);
+        mainSend(chrome.webContents, "zoom", [x]);
     });
 
     if (id) {
@@ -852,7 +852,7 @@ app.whenReady().then(() => {
                     click(_i, w) {
                         for (const i of winL) {
                             if (i[1] === w) {
-                                winToChrome.get(i[0])?.view.webContents.send("win", "chrome_toggle");
+                                mainSend(i[1].webContents, "chorme", []);
                                 break;
                             }
                         }
@@ -864,7 +864,7 @@ app.whenReady().then(() => {
                     click(_i, w) {
                         for (const i of winL) {
                             if (i[1] === w) {
-                                winToChrome.get(i[0])?.view.webContents.send("win", "tree");
+                                mainSend(winToChrome.get(i[0])?.view.webContents, "toggleTree", []);
                                 break;
                             }
                         }
