@@ -3,14 +3,16 @@
 import {
     app,
     globalShortcut,
-    BrowserWindow,
+    BaseWindow,
     ipcMain,
     dialog,
+    WebContentsView,
     nativeTheme,
-    BrowserView,
     screen,
     Menu,
     session,
+    BrowserWindow,
+    type WebContents,
 } from "electron";
 import Store from "../../lib/store/store";
 import * as path from "node:path";
@@ -35,12 +37,12 @@ if (process.platform === "win32") {
 
 const isMac = process.platform === "darwin";
 
-const winL: Map<bwin_id, BrowserWindow> = new Map();
+const winL: Map<bwin_id, BaseWindow> = new Map();
 // 不同的view分配到窗口
 const winToViewl: Map<bwin_id, view_id[]> = new Map();
-const winToChrome: Map<bwin_id, { view: BrowserView; size: "normal" | "hide" | "full" }> = new Map();
-const viewL: Map<view_id, BrowserView> = new Map();
-const winToPasswd: Map<BrowserWindow, BrowserView> = new Map();
+const winToChrome: Map<bwin_id, { view: WebContentsView; size: "normal" | "hide" | "full" }> = new Map();
+const viewL: Map<view_id, WebContentsView> = new Map();
+const winToPasswd: Map<BaseWindow, WebContentsView> = new Map();
 
 const permissionCb = new Map<view_id, Map<string, (isGranted: boolean) => void>>();
 
@@ -127,7 +129,7 @@ function renderer_url(
 }
 
 /** 加载网页 */
-function rendererPath(window: BrowserWindow | Electron.WebContents, file_name: string, q?: Electron.LoadFileOptions) {
+function rendererPath(window: Electron.WebContents, file_name: string, q?: Electron.LoadFileOptions) {
     window.loadURL(renderer_url(file_name, q));
 }
 
@@ -137,20 +139,15 @@ function get_size(w: number, h: number) {
 // 窗口
 async function createWin() {
     const window_name = new Date().getTime() as bwin_id;
-    const main_window = new BrowserWindow({
+    const main_window = new BaseWindow({
         backgroundColor: nativeTheme.shouldUseDarkColors ? "#0f0f0f" : "#ffffff",
         icon: the_icon,
-        webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false,
-            webSecurity: false,
-        },
         frame: false,
         show: true,
         width: store.get("appearance.size.normal.w") || 800,
         height: store.get("appearance.size.normal.h") || 600,
         maximizable: store.get("appearance.size.normal.m") || false,
-    }) as BrowserWindow & { html: string };
+    });
     winL.set(window_name, main_window);
 
     winToViewl.set(window_name, []);
@@ -161,21 +158,22 @@ async function createWin() {
             h: main_window.getNormalBounds().height,
             m: main_window.isMaximized(),
         });
-        for (const i of main_window.getBrowserViews()) {
-            // @ts-ignore
-            i?.webContents?.destroy();
-        }
     });
 
     main_window.on("closed", () => {
         winL.delete(window_name);
+        for (const w of main_window.contentView.children) {
+            if (w instanceof WebContentsView) {
+                w.webContents.close();
+            }
+        }
     });
 
     // 浏览器大小适应
     main_window.on("resize", () => {
         setTimeout(() => {
             const [w, h] = main_window.getContentSize();
-            for (const i of main_window.getBrowserViews()) {
+            for (const i of main_window.contentView.children) {
                 if (i.getBounds().width !== 0 && i !== chrome) i.setBounds(get_size(w, h));
                 if (i === chrome) setChromeSize(window_name);
             }
@@ -195,7 +193,7 @@ async function createWin() {
         mainSend(chrome.webContents, "fullScreen", [false]);
     });
 
-    const chrome = new BrowserView({
+    const chrome = new WebContentsView({
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
@@ -206,7 +204,7 @@ async function createWin() {
         query: { id: window_name.toString(), userData: app.getPath("userData") },
     });
     if (dev) chrome.webContents.openDevTools();
-    main_window.addBrowserView(chrome);
+    main_window.contentView.addChildView(chrome);
     winToChrome.set(window_name, { view: chrome, size: "full" });
     setChromeSize(window_name);
     mainSend(chrome.webContents, "chromeState", [store.get("appearance.size.normal.m") ? "max" : "unmax"]);
@@ -288,11 +286,11 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
         }
     }
 
-    const search_view = new BrowserView(op);
+    const search_view = new WebContentsView(op);
     search_view.setBackgroundColor(nativeTheme.shouldUseDarkColors ? "#0f0f0f" : "#ffffff");
     viewL.set(view_id, search_view);
-    main_window.addBrowserView(search_view);
-    main_window.setTopBrowserView(chrome);
+    main_window.contentView.addChildView(search_view);
+    main_window.contentView.addChildView(chrome);
     winToViewl.get(window_name)?.push(view_id);
     const wc = search_view.webContents;
     const real_url = get_real_url(url);
@@ -325,7 +323,7 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
     sendViews("update", view_id, undefined, undefined, { url: url });
     wc.on("destroyed", () => {
         log("view destroyed", view_id);
-        main_window.removeBrowserView(search_view);
+        main_window.contentView.removeChildView(search_view);
         viewL.delete(view_id);
     });
     wc.on("page-title-updated", (_event, title) => {
@@ -852,7 +850,7 @@ app.whenReady().then(() => {
                     click(_i, w) {
                         for (const i of winL) {
                             if (i[1] === w) {
-                                mainSend(i[1].webContents, "chorme", []);
+                                mainSend(winToChrome.get(i[0])?.view.webContents, "chorme", []);
                                 break;
                             }
                         }
@@ -911,10 +909,16 @@ app.on("will-quit", () => {
     globalShortcut.unregisterAll();
 });
 
+function BaseWindowFromWebContents(wc: WebContents) {
+    return BaseWindow.getAllWindows().find((w) =>
+        w.contentView.children.find((i) => i instanceof WebContentsView && i.webContents === wc),
+    );
+}
+
 mainOn("win", ([pid, type], e) => {
     console.log(pid, type);
     if (!pid) return;
-    const main_window = BrowserWindow.fromWebContents(e.sender);
+    const main_window = BaseWindowFromWebContents(e.sender);
     if (!main_window) return;
     const chrome = winToChrome.get(pid);
     switch (type) {
@@ -973,7 +977,7 @@ mainOn("viewReload", ([id]) => {
     getW(id)?.reload();
 });
 mainOn("viewAdd", async ([url], e) => {
-    const main_window = BrowserWindow.fromWebContents(e.sender);
+    const main_window = BaseWindowFromWebContents(e.sender);
     for (const x of winL) {
         const wid = x[0];
         const w = x[1];
@@ -984,7 +988,7 @@ mainOn("viewAdd", async ([url], e) => {
     }
 });
 mainOn("viewFocus", ([id]) => {
-    // 获取BrowserWindow并提升bview
+    // 获取BaseWindow并提升bview
     winToViewl.forEach((bvs, bid) => {
         for (const i of bvs) {
             if (i === id) {
@@ -992,8 +996,8 @@ mainOn("viewFocus", ([id]) => {
                 const chrome = winToChrome.get(bid)?.view;
                 const view = viewL.get(id);
                 if (!win || !chrome || !view) return;
-                win.setTopBrowserView(view);
-                win.setTopBrowserView(chrome);
+                win.contentView.addChildView(view);
+                win.contentView.addChildView(chrome);
                 win.moveTop();
                 win.focus();
                 return;
@@ -1002,7 +1006,7 @@ mainOn("viewFocus", ([id]) => {
     });
 });
 mainOn("viewReopen", async ([id], e) => {
-    const main_window = BrowserWindow.fromWebContents(e.sender);
+    const main_window = BaseWindowFromWebContents(e.sender);
     for (const x of winL) {
         const wid = x[0];
         const w = x[1];
@@ -1032,14 +1036,14 @@ mainOn("addOpensearch", ([engine]) => {
     }
 });
 mainOn("input", ([arg], e) => {
-    const main_window = BrowserWindow.fromWebContents(e.sender);
+    const main_window = BaseWindowFromWebContents(e.sender);
     console.log(arg);
 
     if (!main_window) return;
 
     if (arg.action === "focus") {
-        const bv = new BrowserView();
-        main_window.addBrowserView(bv);
+        const bv = new WebContentsView();
+        main_window.contentView.addChildView(bv);
         const r = arg.position as DOMRect;
         const w = 100;
         const h = 100;
@@ -1058,7 +1062,7 @@ mainOn("input", ([arg], e) => {
     } else {
         const bv = winToPasswd.get(main_window);
         if (bv) {
-            main_window.removeBrowserView(bv);
+            main_window.contentView.removeChildView(bv);
             bv.webContents.close();
             winToPasswd.delete(main_window);
         }
@@ -1066,7 +1070,7 @@ mainOn("input", ([arg], e) => {
 });
 
 ipcMain.on("view", (e, type, arg) => {
-    const main_window = BrowserWindow.fromWebContents(e.sender);
+    const main_window = BaseWindowFromWebContents(e.sender);
     switch (type) {
         case "opensearch":
             console.log(arg);
@@ -1080,8 +1084,8 @@ ipcMain.on("view", (e, type, arg) => {
             if (!main_window) return;
 
             if (arg.action === "focus") {
-                const bv = new BrowserView();
-                main_window.addBrowserView(bv);
+                const bv = new WebContentsView();
+                main_window.contentView.addChildView(bv);
                 const r = arg.position as DOMRect;
                 const w = 100;
                 const h = 100;
@@ -1100,7 +1104,7 @@ ipcMain.on("view", (e, type, arg) => {
             } else {
                 const bv = winToPasswd.get(main_window);
                 if (bv) {
-                    main_window.removeBrowserView(bv);
+                    main_window.contentView.removeChildView(bv);
                     bv.webContents.close();
                     winToPasswd.delete(main_window);
                 }
