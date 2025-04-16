@@ -158,15 +158,15 @@ async function createWin() {
             h: main_window.getNormalBounds().height,
             m: main_window.isMaximized(),
         });
-    });
-
-    main_window.on("closed", () => {
-        winL.delete(window_name);
         for (const w of main_window.contentView.children) {
             if (w instanceof WebContentsView) {
                 w.webContents.close();
             }
         }
+    });
+
+    main_window.on("closed", () => {
+        winL.delete(window_name);
     });
 
     // 浏览器大小适应
@@ -323,7 +323,7 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
     sendViews("update", view_id, undefined, undefined, { url: url });
     wc.on("destroyed", () => {
         log("view destroyed", view_id);
-        main_window.contentView.removeChildView(search_view);
+        if (!main_window.isDestroyed()) main_window.contentView.removeChildView(search_view);
         viewL.delete(view_id);
     });
     wc.on("page-title-updated", (_event, title) => {
@@ -910,9 +910,11 @@ app.on("will-quit", () => {
 });
 
 function BaseWindowFromWebContents(wc: WebContents) {
-    return BaseWindow.getAllWindows().find((w) =>
+    const w = BaseWindow.getAllWindows().find((w) =>
         w.contentView.children.find((i) => i instanceof WebContentsView && i.webContents === wc),
     );
+    if (w?.isDestroyed()) return undefined;
+    return w;
 }
 
 mainOn("win", ([pid, type], e) => {
