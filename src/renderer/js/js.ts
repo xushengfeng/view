@@ -840,9 +840,9 @@ renderOn("zoom", ([l]) => {
 });
 renderOn("chorme", () => {
     if (chromeSize === "hide") {
-        setChromeSize("hide");
-    } else if (chromeSize === "normal") {
         setChromeSize("normal");
+    } else if (chromeSize === "normal") {
+        setChromeSize("hide");
     }
 });
 renderOn("toggleTree", () => {
