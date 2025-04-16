@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type { cardData, syncView, treeItem } from "../../types";
+import type { bwin_id, cardData, syncView, treeItem, view_id } from "../../types";
 
 const { ipcRenderer, clipboard } = require("electron") as typeof import("electron");
 import * as path from "node:path";
@@ -12,6 +12,7 @@ const setting = store;
 import browser_svg from "../assets/icons/browser.svg";
 import search_svg from "../assets/icons/search.svg";
 import { add } from "node-7z";
+import { renderSend, renderSendSync } from "../../../lib/ipc";
 
 pureStyle();
 
@@ -24,7 +25,7 @@ function iconEl(name: string) {
     return button(image(new URL(`../assets/icons/${name}.svg`, import.meta.url).href, "icon").class("icon"));
 }
 
-const pid = Number(new URLSearchParams(location.search).get("id"));
+const pid = Number(new URLSearchParams(location.search).get("id")) as bwin_id;
 
 let chromeSize: "normal" | "hide" | "full" = "full";
 const chromeSizeFixed: "unfixed" | "fixed" | "fixedSizing" = "unfixed";
@@ -36,7 +37,7 @@ const userDataPath = new URLSearchParams(location.search).get("userData");
 
 let activeViews: number[] = [];
 const myViews: number[] = [];
-let topestView = Number.NaN;
+let topestView: null | view_id = null;
 
 let treeIndex = 0;
 
@@ -49,13 +50,13 @@ let suggestions_url = "";
 type searchListT = { url: string; text: string; icon: string }[];
 
 const treeX = {
-    get: (id: number) => {
-        const view = ipcRenderer.sendSync("tab_view", "get", id);
+    get: (id: view_id) => {
+        const view = renderSendSync("treeGet", [id]);
         console.log(id, JSON.stringify(view));
 
         return view as treeItem;
     },
-    getPPP: (id: number) => {
+    getPPP: (id: view_id) => {
         const ps: number[] = [];
         let v = treeX.get(id);
         while (v.parent !== 0) {
@@ -66,33 +67,33 @@ const treeX = {
         if (ps.length === 0) return [id];
         return ps;
     },
-    reload: (id: number) => {
-        ipcRenderer.send("tab_view", "reload", id);
+    reload: (id: view_id) => {
+        renderSend("viewReload", [id]);
     },
     add: (url: string) => {
-        ipcRenderer.send("tab_view", "add", null, url);
+        renderSend("viewAdd", [url]);
     },
-    close: (id: number) => {
-        ipcRenderer.send("tab_view", "close", id);
+    close: (id: view_id) => {
+        renderSend("viewClose", [id]);
     },
-    switch: (id: number) => {
-        ipcRenderer.send("tab_view", "switch", id);
+    switch: (id: view_id) => {
+        renderSend("viewFocus", [id]);
     },
-    restart: (id: number) => {
-        ipcRenderer.send("tab_view", "restart", id);
+    restart: (id: view_id) => {
+        renderSend("viewReopen", [id]);
     },
     download: (url: string) => {
-        ipcRenderer.send("tab_view", "download", null, url);
+        renderSend("download", [url]);
     },
-    inspect: (id: number, x: number, y: number) => {
-        ipcRenderer.send("tab_view", "inspect", id, { x, y });
+    inspect: (id: view_id, x: number, y: number) => {
+        renderSend("viewInspect", [id, { x, y }]);
     },
-    permission: (id: number, type: string, allow: boolean) => {
-        ipcRenderer.send("tab_view", "permission", id, { type, allow });
+    permission: (id: view_id, type: string, allow: boolean) => {
+        renderSend("viewPermission", [id, { type, allow }]);
     },
 };
 
-const sitesPermission: Map<number, string[]> = new Map(); // todo url
+const sitesPermission: Map<view_id, string[]> = new Map(); // todo url
 
 // --- ui
 
@@ -122,15 +123,15 @@ const inactiveStyle = addClass(
 );
 
 const w_mini = iconEl("minimize").on("click", () => {
-    ipcRenderer.send("win", pid, "mini");
+    renderSend("win", [pid, "mini"]);
     setChromeSize("hide");
 });
 const w_max = iconEl("maximize").on("click", () => {
-    ipcRenderer.send("win", pid, "max");
+    renderSend("win", [pid, "max"]);
     setChromeSize("hide");
 });
 const w_close = iconEl("close").on("click", () => {
-    ipcRenderer.send("win", pid, "close");
+    renderSend("win", [pid, "close"]);
 });
 
 const system_el = view().attr({ id: "system" });
@@ -156,7 +157,7 @@ const urlEl = view("x")
     });
 
 const b_reload = iconEl("reload").on("click", () => {
-    treeX.reload(topestView);
+    if (topestView) treeX.reload(topestView);
     setChromeSize("hide");
 });
 
@@ -207,11 +208,11 @@ const treePel = view("y").class(barStyle).style({ height: "calc(100vh - 24px)", 
 const treeEl = view("x").style({ width: "100vw", overflowX: "scroll", flexGrow: 1 }).addInto(treePel);
 
 class Card extends HTMLElement {
-    view_id: number;
+    view_id: view_id;
     _title = view().bindSet((v: string, el) => {
         el.innerText = v ?? "无标题";
     });
-    _next: number[];
+    _next: view_id[];
     _image: string;
     _icon = "";
     _url = "";
@@ -222,7 +223,7 @@ class Card extends HTMLElement {
         this.active(false);
     });
 
-    constructor(id: number, title: string, next: number[] | undefined, image: string) {
+    constructor(id: view_id, title: string, next: view_id[] | undefined, image: string) {
         super();
         this.view_id = id;
         this._title.sv(title);
@@ -276,10 +277,10 @@ class Card extends HTMLElement {
         }
     }
 
-    set viewId(id: number) {
+    set viewId(id: view_id) {
         this.view_id = id;
     }
-    set next(n: number[]) {
+    set next(n: view_id[]) {
         this._next = n;
     }
     get next() {
@@ -328,9 +329,11 @@ siteAboutEl.el.addEventListener("toggle", (e) => {
     // @ts-ignore
     if (e.newState === "closed") {
         setChromeSize("hide");
-        const list = sitesPermission.get(topestView);
-        for (const i of list ?? []) {
-            treeX.permission(topestView, i, false);
+        if (topestView) {
+            const list = sitesPermission.get(topestView);
+            for (const i of list ?? []) {
+                treeX.permission(topestView, i, false);
+            }
         }
     }
 });
@@ -342,7 +345,7 @@ function setChromeSize(type: "normal" | "hide" | "full") {
 
     let t = type;
     if (type === "hide" && (chromeSizeFixed !== "unfixed" || (!windowMax && !windowFullScreen))) t = "normal";
-    ipcRenderer.send("win", pid, `${t}_chrome`);
+    renderSend("win", [pid, `${t}_chrome`]);
 
     if (type === "normal") {
         searchListEl.clear();
@@ -588,7 +591,7 @@ function addSearchItem(i: searchListT[0]) {
     searchListEl.add(el);
 }
 
-function createCard(id: number): Card {
+function createCard(id: view_id): Card {
     const view = treeX.get(id);
     const title = view.title;
     const next = view.next;
@@ -603,7 +606,7 @@ function renderTree(i: number) {
     treePel.style({ display: "flex" });
     treeEl.clear();
     const d = 5;
-    const root = (treeX.get(0).next ?? []).toReversed();
+    const root = (treeX.get(0 as view_id).next ?? []).toReversed();
     const rootSlice = root.slice(i * d, i * d + d);
     treeEl.add(spacer()); // justify-content:end
     if (i * d + d <= root.length) {
@@ -648,7 +651,7 @@ function getCardById(id: number) {
     return document.querySelector(`[data-id="${id}"]`) as Card;
 }
 
-function cardAdd(id: number, parent: number) {
+function cardAdd(id: view_id, parent: number) {
     activeViews.push(id);
     topestView = id;
     myViews.push(id);
@@ -660,7 +663,7 @@ function cardAdd(id: number, parent: number) {
     }
 }
 
-function cardRestart(id: number) {
+function cardRestart(id: view_id) {
     activeViews.push(id);
     topestView = id;
     myViews.push(id);
@@ -669,13 +672,13 @@ function cardRestart(id: number) {
     cardEl.active(true);
 }
 
-function cardClose(id: number) {
+function cardClose(id: view_id) {
     activeViews = activeViews.filter((x) => x !== id);
     const cardEl = getCardById(id);
     cardEl.active(false);
 }
 
-function cardUpdata(id: number, op: cardData) {
+function cardUpdata(id: view_id, op: cardData) {
     const cardEl = getCardById(id);
     if (cardEl) {
         if (op.title) cardEl._title.sv(op.title);
@@ -763,7 +766,7 @@ function menu(params: Electron.ContextMenuParams) {
     const inspect = view()
         .add("检查")
         .on("click", () => {
-            treeX.inspect(topestView, params.x, params.y);
+            if (topestView) treeX.inspect(topestView, params.x, params.y);
         });
 
     menu_el.add(inspect);
@@ -780,7 +783,7 @@ function hide_menu() {
     menu_el.el.hidePopover();
 }
 
-function render_site_permission_requ(id: number) {
+function render_site_permission_requ(id: view_id) {
     permissionEl.clear();
     const url = treeX.get(id).url;
     const l = sitesPermission.get(id) || [];
@@ -859,7 +862,7 @@ ipcRenderer.on("win", (_e, a, arg) => {
 init_search();
 
 // 同步树状态
-ipcRenderer.on("view", (_e, type: syncView, id: number, pid: number, wid: number, op) => {
+ipcRenderer.on("view", (_e, type: syncView, id: view_id, pid: number, wid: number, op) => {
     console.log(type, id, pid, wid, op);
     switch (type) {
         case "add":

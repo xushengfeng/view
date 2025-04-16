@@ -49,12 +49,20 @@ export interface setting {
     };
 }
 
+/** BrowserWindow id */
+type bwin_id = number & { readonly __tag: unique symbol };
+// 一个browserview对应一个id，不存在history
+/** 网页id（包括在同一页面跳转的） */
+type view_id = number & { readonly __tag: unique symbol };
+/** 访问id 包括新建、重启、刷新 */
+type VisitId = number & { readonly __tag: unique symbol };
+
 type treeItem = {
     url: string;
     title: string;
     logo: string;
-    parent: number;
-    next?: number[];
+    parent: view_id;
+    next?: view_id[];
     visits: number[];
 };
 

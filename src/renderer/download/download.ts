@@ -4,6 +4,7 @@ const Store = require("electron-store") as typeof import("electron-store");
 import type { DownloadItem } from "../../types";
 
 import list from "../../../lib/list";
+import { renderSend } from "../../../lib/ipc";
 
 // TODO history
 const download_store = new Store({ name: "download" });
@@ -47,7 +48,7 @@ function aria2(m: string, p: any[]) {
 const x = new URLSearchParams(location.search);
 
 if (x.get("url")) {
-    ipcRenderer.send("tab_view", "download", x.get("url"));
+    renderSend("download", [x.get("url") ?? ""]);
 }
 
 function create_download_card(params: DownloadItem) {

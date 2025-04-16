@@ -19,7 +19,8 @@ import { spawn, exec } from "node:child_process";
 import * as fs from "node:fs";
 import { t, lan, getLans, matchFitLan } from "../../lib/translate/translate";
 import url from "node:url";
-import type { setting, DownloadItem, cardData, syncView, treeItem } from "../types";
+import type { setting, DownloadItem, cardData, syncView, treeItem, bwin_id, view_id, VisitId } from "../types";
+import { mainOn } from "../../lib/ipc";
 const Keyv = require("keyv").default as typeof import("keyv").default;
 const KeyvSqlite = require("@keyv/sqlite").default as typeof import("@keyv/sqlite").default;
 
@@ -34,13 +35,6 @@ if (process.platform === "win32") {
 
 const isMac = process.platform === "darwin";
 
-/** BrowserWindow id */
-type bwin_id = number & { readonly __tag: unique symbol };
-// 一个browserview对应一个id，不存在history
-/** 网页id（包括在同一页面跳转的） */
-type view_id = number & { readonly __tag: unique symbol };
-/** 访问id 包括新建、重启、刷新 */
-type VisitId = number & { readonly __tag: unique symbol };
 const winL: Map<bwin_id, BrowserWindow> = new Map();
 // 不同的view分配到窗口
 const winToViewl: Map<bwin_id, view_id[]> = new Map();
@@ -977,7 +971,7 @@ ipcMain.on("setting", async (event, arg, arg1, arg2) => {
     }
 });
 
-ipcMain.on("win", (e, pid, type) => {
+mainOn("win", ([pid, type], e) => {
     console.log(pid, type);
     if (!pid) return;
     const main_window = BrowserWindow.fromWebContents(e.sender);
@@ -1022,77 +1016,74 @@ if (!fs.existsSync(path.join(app.getPath("userData"), "capture"))) {
     fs.mkdirSync(path.join(app.getPath("userData"), "capture"));
 }
 
-ipcMain.on("tab_view", async (e, type, id: view_id, arg2) => {
-    console.log(type);
+function getW(id: view_id) {
+    const searchWindow = viewL.get(id);
+    return searchWindow?.webContents;
+}
 
+mainOn("treeGet", async ([id]) => await treeStore.get(id));
+mainOn("viewClose", ([id]) => {
+    getW(id)?.close();
+    sendViews("close", id, undefined, undefined, undefined);
+});
+mainOn("viewStop", ([id]) => {
+    getW(id)?.stop();
+});
+mainOn("viewReload", ([id]) => {
+    getW(id)?.reload();
+});
+mainOn("viewAdd", async ([url], e) => {
     const main_window = BrowserWindow.fromWebContents(e.sender);
-    const search_window = viewL.get(id);
-    switch (type) {
-        case "get":
-            e.returnValue = await treeStore.get(id);
+    for (const x of winL) {
+        const wid = x[0];
+        const w = x[1];
+        if (w === main_window) {
+            createView(wid, url, 0 as view_id);
             break;
-        case "close":
-            search_window?.webContents.close();
-            sendViews("close", id, undefined, undefined, undefined);
-            break;
-        case "stop":
-            search_window?.webContents.stop();
-            break;
-        case "reload":
-            search_window?.webContents.reload();
-            break;
-        case "add":
-            for (const x of winL) {
-                const wid = x[0];
-                const w = x[1];
-                if (w === main_window) {
-                    createView(wid, arg2, 0 as view_id);
-                    break;
-                }
-            }
-            break;
-        case "switch":
-            // 获取BrowserWindow并提升bview
-            winToViewl.forEach((bvs, bid) => {
-                for (const i of bvs) {
-                    if (i === id) {
-                        const win = winL.get(bid);
-                        const chrome = winToChrome.get(bid)?.view;
-                        const view = viewL.get(id);
-                        if (!win || !chrome || !view) return;
-                        win.setTopBrowserView(view);
-                        win.setTopBrowserView(chrome);
-                        win.moveTop();
-                        win.focus();
-                        return;
-                    }
-                }
-            });
-            break;
-        case "restart":
-            for (const x of winL) {
-                const wid = x[0];
-                const w = x[1];
-                if (w === main_window) {
-                    const url = (await treeStore.get(id)).url;
-                    createView(wid, url, undefined, id);
-                    break;
-                }
-            }
-            break;
-        case "dev":
-            search_window?.webContents.openDevTools();
-            break;
-        case "inspect":
-            search_window?.webContents.inspectElement(arg2.x, arg2.y);
-            break;
-        case "download":
-            download(arg2);
-            break;
-        case "permission":
-            permissionCb.get(id)?.get(arg2.type)?.(arg2.allow);
-            break;
+        }
     }
+});
+mainOn("viewFocus", ([id]) => {
+    // 获取BrowserWindow并提升bview
+    winToViewl.forEach((bvs, bid) => {
+        for (const i of bvs) {
+            if (i === id) {
+                const win = winL.get(bid);
+                const chrome = winToChrome.get(bid)?.view;
+                const view = viewL.get(id);
+                if (!win || !chrome || !view) return;
+                win.setTopBrowserView(view);
+                win.setTopBrowserView(chrome);
+                win.moveTop();
+                win.focus();
+                return;
+            }
+        }
+    });
+});
+mainOn("viewReopen", async ([id], e) => {
+    const main_window = BrowserWindow.fromWebContents(e.sender);
+    for (const x of winL) {
+        const wid = x[0];
+        const w = x[1];
+        if (w === main_window) {
+            const url = (await treeStore.get(id)).url;
+            createView(wid, url, undefined, id);
+            break;
+        }
+    }
+});
+mainOn("viewDev", ([id]) => {
+    getW(id)?.openDevTools();
+});
+mainOn("viewInspect", ([id, { x, y }]) => {
+    getW(id)?.inspectElement(x, y);
+});
+mainOn("download", ([url]) => {
+    download(url);
+});
+mainOn("viewPermission", ([id, arg2]) => {
+    permissionCb.get(id)?.get(arg2.type)?.(arg2.allow);
 });
 
 ipcMain.on("view", (e, type, arg) => {
