@@ -2,7 +2,7 @@
 const { ipcRenderer, ipcMain} = require("electron") as typeof import("electron");
 
 import type { Display, MessageBoxSyncOptions, NativeTheme, OpenDialogOptions } from "electron";
-import type { bwin_id, treeItem, view_id } from "../src/types";
+import type { bwin_id, setting, treeItem, view_id } from "../src/types";
 
 type Equals<X, Y> = (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2 ? true : false;
 
@@ -29,6 +29,17 @@ type Message = {
         vid: view_id,
         op: { type: string; allow: boolean }, // todo
     ) => void;
+    addOpensearch: (o: setting["searchEngine"]["engine"]) => void;
+    input: (o: {
+        action: "focus" | "blur";
+        position?: { x: number; y: number };
+        type?: string;
+        value?: string;
+        autocomplete?: string;
+        list?: string[];
+        username?: string;
+        passwd?: string;
+    }) => void;
 };
 
 const name = "ipc";

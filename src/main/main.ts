@@ -766,11 +766,6 @@ try {
     }
 } catch (e) {}
 
-// 获取运行位置
-ipcMain.on("run_path", (event) => {
-    event.returnValue = run_path;
-});
-
 // 自动开启开发者模式
 if (process.argv.includes("-d") || import.meta.env.DEV) {
     dev = true;
@@ -916,61 +911,6 @@ app.on("will-quit", () => {
     globalShortcut.unregisterAll();
 });
 
-ipcMain.on("setting", async (event, arg, arg1, arg2) => {
-    switch (arg) {
-        case "save_err": {
-            console.log("保存设置失败");
-            break;
-        }
-        case "reload":
-            app.relaunch();
-            app.exit(0);
-            break;
-        case "clear": {
-            const ses = session.defaultSession;
-            if (arg1 === "storage") {
-                ses.clearStorageData()
-                    .then(() => {
-                        event.sender.send("setting", "storage", true);
-                    })
-                    .catch(() => {
-                        event.sender.send("setting", "storage", false);
-                    });
-            } else {
-                Promise.all([
-                    ses.clearAuthCache(),
-                    ses.clearCache(),
-                    ses.clearCodeCaches({}),
-                    ses.clearHostResolverCache(),
-                ])
-                    .then(() => {
-                        event.sender.send("setting", "cache", true);
-                    })
-                    .catch(() => {
-                        event.sender.send("setting", "cache", false);
-                    });
-            }
-            break;
-        }
-        case "open_dialog":
-            dialog.showOpenDialog(arg1).then((x) => {
-                event.sender.send("setting", arg, arg2, x);
-            });
-            break;
-        case "move_user_data": {
-            if (!arg1) return;
-            const to_path = path.resolve(arg1);
-            const pre_path = app.getPath("userData");
-            fs.mkdirSync(to_path, { recursive: true });
-            if (process.platform === "win32") {
-                exec(`xcopy ${pre_path}\\** ${to_path} /Y /s`);
-            } else {
-                exec(`cp -r ${pre_path}/** ${to_path}`);
-            }
-        }
-    }
-});
-
 mainOn("win", ([pid, type], e) => {
     console.log(pid, type);
     if (!pid) return;
@@ -1085,6 +1025,45 @@ mainOn("download", ([url]) => {
 mainOn("viewPermission", ([id, arg2]) => {
     permissionCb.get(id)?.get(arg2.type)?.(arg2.allow);
 });
+mainOn("addOpensearch", ([engine]) => {
+    console.log(engine);
+    for (const i in engine) {
+        store.set(`searchEngine.engine.${i}`, engine[i]);
+    }
+});
+mainOn("input", ([arg], e) => {
+    const main_window = BrowserWindow.fromWebContents(e.sender);
+    console.log(arg);
+
+    if (!main_window) return;
+
+    if (arg.action === "focus") {
+        const bv = new BrowserView();
+        main_window.addBrowserView(bv);
+        const r = arg.position as DOMRect;
+        const w = 100;
+        const h = 100;
+        bv.setBounds({
+            width: w,
+            height: h,
+            x: Math.floor(Math.min(main_window.getBounds().width - w, r.x)),
+            y: Math.floor(Math.min(main_window.getBounds().height - h, r.y)),
+        });
+        rendererPath(bv.webContents, "passwd.html");
+        winToPasswd.set(main_window, bv);
+        bv.webContents.on("did-finish-load", () => {
+            bv.webContents.send("input", arg);
+        });
+        if (dev) bv.webContents.openDevTools();
+    } else {
+        const bv = winToPasswd.get(main_window);
+        if (bv) {
+            main_window.removeBrowserView(bv);
+            bv.webContents.close();
+            winToPasswd.delete(main_window);
+        }
+    }
+});
 
 ipcMain.on("view", (e, type, arg) => {
     const main_window = BrowserWindow.fromWebContents(e.sender);
@@ -1127,9 +1106,4 @@ ipcMain.on("view", (e, type, arg) => {
                 }
             }
     }
-});
-
-ipcMain.on("theme", (_e, v) => {
-    nativeTheme.themeSource = v;
-    store.set("appearance.theme", v);
 });

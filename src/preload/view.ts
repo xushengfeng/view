@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { setting } from "../types";
+import { renderSend } from "../../lib/ipc";
 
 contextBridge.exposeInMainWorld("electron", {});
 
@@ -35,7 +36,7 @@ function init_status_bar() {
 let status_bar_t1: NodeJS.Timeout;
 
 function get_opensearch() {
-    const l = {};
+    const l: setting["searchEngine"]["engine"] = {};
     for (const el of document.querySelectorAll('link[type="application/opensearchdescription+xml"')) {
         const href = el.getAttribute("href");
         if (href) {
@@ -56,13 +57,13 @@ function get_opensearch() {
                     for (const el of doc.querySelectorAll("Url")) {
                         const type = el.getAttribute("type");
                         if (type === "text/html") {
-                            l[name].url = el.getAttribute("template")?.replaceAll("{searchTerms}", "%s");
+                            l[name].url = el.getAttribute("template")?.replaceAll("{searchTerms}", "%s") || "";
                         }
                         if (type === "application/x-suggestions+json" || type === "application/json") {
-                            l[name].sug = el.getAttribute("template")?.replaceAll("{searchTerms}", "%s");
+                            l[name].sug = el.getAttribute("template")?.replaceAll("{searchTerms}", "%s") || "";
                         }
                     }
-                    ipcRenderer.send("view", "opensearch", l);
+                    renderSend("addOpensearch", [l]);
                 });
         }
     }
@@ -110,18 +111,20 @@ function inputx() {
                 } else if (iel.type.toLowerCase() === "password") {
                     l.passwd = iel.value;
                 }
-                ipcRenderer.send("view", "input", { action: "blur", ...l });
+                renderSend("input", [{ action: "blur", ...l }]);
             });
             iel.addEventListener("focus", () => {
                 const r = iel.getBoundingClientRect();
                 r.x += prect.x;
                 r.y += prect.y;
-                ipcRenderer.send("view", "input", {
-                    action: "focus",
-                    position: r.toJSON(),
-                    type: iel.type,
-                    value: iel.value,
-                });
+                renderSend("input", [
+                    {
+                        action: "focus",
+                        position: r.toJSON(),
+                        type: iel.type,
+                        value: iel.value,
+                    },
+                ]);
             });
             forml.push(iel);
         }
@@ -142,25 +145,33 @@ function inputx() {
                     for (const op of iel.list.querySelectorAll("option")) {
                         list.push(op.textContent ?? "");
                     }
-                    ipcRenderer.send("view", "input", {
-                        action: "focus",
-                        position: r.toJSON(),
-                        type: "list",
-                        list,
-                    });
+                    renderSend("input", [
+                        {
+                            action: "focus",
+                            position: r.toJSON(),
+                            type: "list",
+                            list,
+                        },
+                    ]);
                 } else if (iel.value === "") {
                     if (iel.autocomplete !== "off" && true) {
                         // TODO 默认补全与否
-                        ipcRenderer.send("view", "input", {
-                            action: "focus",
-                            position: r.toJSON(),
-                            autocomplete: iel.autocomplete,
-                        });
+                        renderSend("input", [
+                            {
+                                action: "focus",
+                                position: r.toJSON(),
+                                autocomplete: iel.autocomplete,
+                            },
+                        ]);
                     }
                 }
             });
             iel.addEventListener("blur", () => {
-                ipcRenderer.send("view", "input", { action: "blur" });
+                renderSend("input", [
+                    {
+                        action: "blur",
+                    },
+                ]);
             });
         }
     }
