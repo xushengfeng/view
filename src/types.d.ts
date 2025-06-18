@@ -68,6 +68,15 @@ type treeItem = {
 
 type syncView = "add" | "close" | "update" | "move" | "restart";
 
+type viewAction = {
+    version?: string;
+    type: "close" | "reload" | "stop" | "restart";
+    viewId: view_id;
+    ignoreBid: bwin_id;
+    bwinId: bwin_id;
+    actionId: number;
+};
+
 export interface cardData {
     url?: string;
     title?: string;

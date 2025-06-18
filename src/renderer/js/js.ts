@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type { bwin_id, cardData, syncView, treeItem, view_id } from "../../types";
+import type { viewAction, bwin_id, cardData, treeItem, view_id } from "../../types";
 
 const { clipboard } = require("electron") as typeof import("electron");
 import * as path from "node:path";
@@ -11,7 +11,6 @@ const setting = store;
 
 import browser_svg from "../assets/icons/browser.svg";
 import search_svg from "../assets/icons/search.svg";
-import { add } from "node-7z";
 import { renderOn, renderSend, renderSendSync } from "../../../lib/ipc";
 
 pureStyle();
@@ -68,19 +67,19 @@ const treeX = {
         return ps;
     },
     reload: (id: view_id) => {
-        renderSend("viewReload", [id]);
+        sendAction({ type: "reload", viewId: id });
     },
     add: (url: string) => {
         renderSend("viewAdd", [url]);
     },
     close: (id: view_id) => {
-        renderSend("viewClose", [id]);
+        sendAction({ type: "close", viewId: id });
     },
     switch: (id: view_id) => {
         renderSend("viewFocus", [id]);
     },
     restart: (id: view_id) => {
-        renderSend("viewReopen", [id]);
+        sendAction({ type: "restart", viewId: id });
     },
     download: (url: string) => {
         renderSend("download", [url]);
@@ -651,6 +650,31 @@ function getCardById(id: number) {
     return document.querySelector(`[data-id="${id}"]`) as Card;
 }
 
+function sendAction(a: { type: viewAction["type"]; viewId: view_id }) {
+    const action: viewAction = {
+        type: a.type,
+        viewId: a.viewId,
+        ignoreBid: pid,
+        actionId: Date.now(),
+        bwinId: pid,
+    };
+    // ui
+    receiveAction(action); // 来自同一页面的操作，立即执行，不通过主进程反射中转
+    // ui+操作
+    renderSend("viewAction", [action]);
+}
+
+function receiveAction(action: viewAction) {
+    switch (action.type) {
+        case "close":
+            cardClose(action.viewId);
+            break;
+        case "restart":
+            cardRestart(action.viewId);
+            break;
+    }
+}
+
 function cardAdd(id: view_id, parent: number) {
     activeViews.push(id);
     topestView = id;
@@ -861,9 +885,13 @@ renderOn("fullScreen", ([p]) => {
 init_search();
 
 // 同步树状态
+
+renderOn("viewAction", ([action]) => {
+    console.log("receive action", action);
+    receiveAction(action);
+});
+
 renderOn("viewSAdd", ([id, pid]) => cardAdd(id, pid));
-renderOn("viewSRestart", ([id]) => cardRestart(id));
-renderOn("viewSClose", ([id]) => cardClose(id));
 renderOn("viewSUpdate", ([id, op]) => cardUpdata(id, op));
 renderOn("viewSMove", ([id, win]) => cardMove(id, win));
 

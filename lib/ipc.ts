@@ -1,8 +1,7 @@
 // biome-ignore format:
 const { ipcRenderer, ipcMain} = require("electron") as typeof import("electron");
 
-import type { Display, MessageBoxSyncOptions, NativeTheme, OpenDialogOptions } from "electron";
-import type { bwin_id, cardData, setting, treeItem, view_id } from "../src/types";
+import type { bwin_id, cardData, setting, treeItem, view_id, viewAction } from "../src/types";
 
 type Equals<X, Y> = (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2 ? true : false;
 
@@ -16,12 +15,9 @@ type VoidKeys<M> = {
 type Message = {
     win: (pid: bwin_id, type: "mini" | "max" | "close" | "full_chrome" | "normal_chrome" | "hide_chrome") => void;
     treeGet: (vid: view_id) => treeItem;
-    viewClose: (vid: view_id) => void;
-    viewStop: (vid: view_id) => void;
-    viewReload: (vid: view_id) => void;
+    viewAction: (a: viewAction) => void;
     viewAdd: (url: string) => void;
     viewFocus: (vid: view_id) => void;
-    viewReopen: (vid: view_id) => void;
     viewDev: (vid: view_id) => void;
     viewInspect: (vid: view_id, p: { x: number; y: number }) => void;
     download: (url: string) => void;
@@ -30,8 +26,6 @@ type Message = {
         op: { type: string; allow: boolean }, // todo
     ) => void;
     viewSAdd: (vid: view_id, pid: view_id) => void;
-    viewSRestart: (vid: view_id) => void;
-    viewSClose: (vid: view_id) => void;
     viewSUpdate: (vid: view_id, op: cardData) => void;
     viewSMove: (vid: view_id, win: bwin_id) => void;
     addOpensearch: (o: setting["searchEngine"]["engine"]) => void;

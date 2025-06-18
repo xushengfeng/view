@@ -22,7 +22,7 @@ import * as fs from "node:fs";
 import { t, lan, getLans, matchFitLan } from "../../lib/translate/translate";
 import url from "node:url";
 import type { setting, DownloadItem, cardData, syncView, treeItem, bwin_id, view_id, VisitId } from "../types";
-import { mainOn, mainSend, renderSend } from "../../lib/ipc";
+import { mainOn, mainOnReflect, mainSend, renderSend } from "../../lib/ipc";
 const Keyv = require("keyv").default as typeof import("keyv").default;
 const KeyvSqlite = require("@keyv/sqlite").default as typeof import("@keyv/sqlite").default;
 
@@ -476,6 +476,7 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
     return view_id;
 }
 
+// todo 移除
 function sendViews(type: syncView, id: number, pid?: number, wid?: number, op?: cardData) {
     for (const w of winL) {
         const chrome = winToChrome.get(w[0])?.view;
@@ -968,15 +969,38 @@ function getW(id: view_id) {
 }
 
 mainOn("treeGet", async ([id]) => await treeStore.get(id));
-mainOn("viewClose", ([id]) => {
-    getW(id)?.close();
-    sendViews("close", id, undefined, undefined, undefined);
-});
-mainOn("viewStop", ([id]) => {
-    getW(id)?.stop();
-});
-mainOn("viewReload", ([id]) => {
-    getW(id)?.reload();
+mainOnReflect("viewAction", ([a], e) => {
+    // 处理viewAction事件
+    if (a.type === "close") {
+        getW(a.viewId)?.close();
+    }
+    if (a.type === "reload") {
+        getW(a.viewId)?.reload();
+    }
+    if (a.type === "stop") {
+        getW(a.viewId)?.stop();
+    }
+    if (a.type === "restart") {
+        const main_window = BaseWindowFromWebContents(e.sender);
+        for (const x of winL) {
+            const wid = x[0];
+            const w = x[1];
+            if (w === main_window) {
+                (async () => {
+                    const url = (await treeStore.get(a.viewId)).url;
+                    createView(wid, url, undefined, a.viewId);
+                })();
+                break;
+            }
+        }
+    }
+    // 广播
+    // todo web不同设备广播
+    // 不同窗口的广播
+    return Array.from(winToChrome)
+        .filter((i) => !i[1].view.webContents.isDestroyed())
+        .filter((i) => i[0] !== a.ignoreBid)
+        .map((i) => i[1].view.webContents);
 });
 mainOn("viewAdd", async ([url], e) => {
     const main_window = BaseWindowFromWebContents(e.sender);
@@ -1006,18 +1030,6 @@ mainOn("viewFocus", ([id]) => {
             }
         }
     });
-});
-mainOn("viewReopen", async ([id], e) => {
-    const main_window = BaseWindowFromWebContents(e.sender);
-    for (const x of winL) {
-        const wid = x[0];
-        const w = x[1];
-        if (w === main_window) {
-            const url = (await treeStore.get(id)).url;
-            createView(wid, url, undefined, id);
-            break;
-        }
-    }
 });
 mainOn("viewDev", ([id]) => {
     getW(id)?.openDevTools();
