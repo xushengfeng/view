@@ -72,7 +72,7 @@ type viewAction = {
     ignoreBid?: bwin_id;
     actionId: number;
 } & (
-    | { type: "close" | "reload" | "stop" | "restart" }
+    | { type: "close" | "reload" | "stop" | "restart" | "focus" | "dev" }
     | {
           type: "update";
           data: cardData;

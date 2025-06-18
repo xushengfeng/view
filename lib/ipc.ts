@@ -17,8 +17,6 @@ type Message = {
     treeGet: (vid: view_id) => treeItem;
     viewAction: (a: viewAction) => void;
     viewAdd: (url: string) => void;
-    viewFocus: (vid: view_id) => void;
-    viewDev: (vid: view_id) => void;
     viewInspect: (vid: view_id, p: { x: number; y: number }) => void;
     download: (url: string) => void;
     viewPermission: (

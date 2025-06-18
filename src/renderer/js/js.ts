@@ -76,7 +76,7 @@ const treeX = {
         sendAction({ type: "close", viewId: id });
     },
     switch: (id: view_id) => {
-        renderSend("viewFocus", [id]);
+        sendAction({ type: "focus", viewId: id });
     },
     restart: (id: view_id) => {
         sendAction({ type: "restart", viewId: id });
@@ -650,7 +650,7 @@ function getCardById(id: number) {
     return document.querySelector(`[data-id="${id}"]`) as Card;
 }
 
-function sendAction(a: { type: "close" | "reload" | "stop" | "restart"; viewId: view_id }) {
+function sendAction(a: { type: "close" | "reload" | "stop" | "restart" | "focus"; viewId: view_id }) {
     const action: viewAction = {
         type: a.type,
         viewId: a.viewId,

@@ -984,6 +984,27 @@ mainOnReflect("viewAction", ([a], e) => {
             }
         }
     }
+    if (a.type === "focus") {
+        // 获取BaseWindow并提升bview
+        winToViewl.forEach((bvs, bid) => {
+            for (const i of bvs) {
+                if (i === a.viewId) {
+                    const win = winL.get(bid);
+                    const chrome = winToChrome.get(bid)?.view;
+                    const view = viewL.get(a.viewId);
+                    if (!win || !chrome || !view) return;
+                    win.contentView.addChildView(view);
+                    win.contentView.addChildView(chrome);
+                    win.moveTop();
+                    win.focus();
+                    return;
+                }
+            }
+        });
+    }
+    if (a.type === "dev") {
+        getW(a.viewId)?.openDevTools();
+    }
     // 广播
     // todo web不同设备广播
     // 不同窗口的广播
@@ -1015,27 +1036,6 @@ mainOn("viewAdd", async ([url], e) => {
             break;
         }
     }
-});
-mainOn("viewFocus", ([id]) => {
-    // 获取BaseWindow并提升bview
-    winToViewl.forEach((bvs, bid) => {
-        for (const i of bvs) {
-            if (i === id) {
-                const win = winL.get(bid);
-                const chrome = winToChrome.get(bid)?.view;
-                const view = viewL.get(id);
-                if (!win || !chrome || !view) return;
-                win.contentView.addChildView(view);
-                win.contentView.addChildView(chrome);
-                win.moveTop();
-                win.focus();
-                return;
-            }
-        }
-    });
-});
-mainOn("viewDev", ([id]) => {
-    getW(id)?.openDevTools();
 });
 mainOn("viewInspect", ([id, { x, y }]) => {
     getW(id)?.inspectElement(x, y);
