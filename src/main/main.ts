@@ -21,8 +21,8 @@ import { spawn, exec } from "node:child_process";
 import * as fs from "node:fs";
 import { t, lan, getLans, matchFitLan } from "../../lib/translate/translate";
 import url from "node:url";
-import type { setting, DownloadItem, cardData, syncView, treeItem, bwin_id, view_id, VisitId } from "../types";
-import { mainOn, mainOnReflect, mainSend, renderSend } from "../../lib/ipc";
+import type { setting, DownloadItem, treeItem, bwin_id, view_id, VisitId, cardData } from "../types";
+import { mainOn, mainOnReflect, mainSend } from "../../lib/ipc";
 const Keyv = require("keyv").default as typeof import("keyv").default;
 const KeyvSqlite = require("@keyv/sqlite").default as typeof import("@keyv/sqlite").default;
 
@@ -319,8 +319,7 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
         return { action: "deny" };
     });
     if (dev) wc.openDevTools();
-    if (!chrome.webContents.isDestroyed()) chrome.webContents.send("url", view_id, "new", url);
-    sendViews("update", view_id, undefined, undefined, { url: url });
+    viewUpdate(view_id, { url: url });
     wc.on("destroyed", () => {
         log("view destroyed", view_id);
         if (!main_window.isDestroyed()) main_window.contentView.removeChildView(search_view);
@@ -330,12 +329,12 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
         log("page title updated", title);
         treeStore.set(view_id, "title", title);
 
-        sendViews("update", view_id, undefined, undefined, { title });
+        viewUpdate(view_id, { title });
     });
     wc.on("page-favicon-updated", (_event, favlogo) => {
         log("page favicon updated", favlogo[0]);
         treeStore.set(view_id, "logo", favlogo[0]);
-        sendViews("update", view_id, undefined, undefined, { icon: favlogo[0] });
+        viewUpdate(view_id, { icon: favlogo[0] });
     });
     wc.on("will-navigate", (event) => {
         log("will navigate", event.url);
@@ -346,21 +345,21 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
     });
     wc.on("did-navigate", (_event, _url) => {
         log("did navigate", _url);
-        if (_url !== real_url) sendViews("update", view_id, undefined, undefined, { url: _url });
-        else sendViews("update", view_id, undefined, undefined, { url: url });
+        if (_url !== real_url) viewUpdate(view_id, { url: _url });
+        else viewUpdate(view_id, { url: url });
     });
     wc.on("did-navigate-in-page", (_event, url, isMainFrame) => {
         if (isMainFrame) {
             treeStore.set(view_id, "url", url);
-            sendViews("update", view_id, undefined, undefined, { url: url });
+            viewUpdate(view_id, { url: url });
         }
         log("did navigate in page", url, isMainFrame);
     });
     wc.on("did-start-loading", () => {
-        sendViews("update", view_id, undefined, undefined, { loading: true });
+        viewUpdate(view_id, { loading: true });
     });
     wc.on("did-stop-loading", () => {
-        sendViews("update", view_id, undefined, undefined, { loading: false });
+        viewUpdate(view_id, { loading: false });
     });
     wc.on("did-fail-load", (_event, err_code, err_des) => {
         rendererPath(wc, "browser_bg.html", {
@@ -460,28 +459,19 @@ async function createView(_window_name: bwin_id, url: string, pid?: view_id, id?
         mainSend(chrome.webContents, "zoom", [x]);
     });
 
-    if (id) {
-        sendViews("restart", view_id, undefined, undefined, undefined);
-        return id;
-    }
-
     if (pid !== undefined) {
         const l = (await treeStore.get(pid))?.next || [];
         l.push(view_id);
         treeStore.set(pid, "next", l);
         treeStore.set(view_id, "parent", pid);
-        sendViews("add", view_id, pid, undefined, undefined);
+        mainSend(getAllChromes(), "viewSAdd", [view_id, pid]);
     }
 
     return view_id;
 }
 
-// todo 移除
-function sendViews(type: syncView, id: number, pid?: number, wid?: number, op?: cardData) {
-    for (const w of winL) {
-        const chrome = winToChrome.get(w[0])?.view;
-        chrome?.webContents.send("view", type, id, pid, wid, op);
-    }
+function getAllChromes() {
+    return Array.from(winToChrome.values()).map((v) => v.view.webContents);
 }
 
 function getPermission(url: string, permission: string): "allow" | "deny" | "ask" {
@@ -1002,6 +992,19 @@ mainOnReflect("viewAction", ([a], e) => {
         .filter((i) => i[0] !== a.ignoreBid)
         .map((i) => i[1].view.webContents);
 });
+
+function viewUpdate(id: view_id, data: cardData) {
+    // 广播
+    mainSend(getAllChromes(), "viewAction", [
+        {
+            type: "update",
+            viewId: id,
+            actionId: Date.now(),
+            data,
+        },
+    ]);
+}
+
 mainOn("viewAdd", async ([url], e) => {
     const main_window = BaseWindowFromWebContents(e.sender);
     for (const x of winL) {

@@ -66,16 +66,18 @@ type treeItem = {
     visits: number[];
 };
 
-type syncView = "add" | "close" | "update" | "move" | "restart";
-
 type viewAction = {
     version?: string;
-    type: "close" | "reload" | "stop" | "restart";
     viewId: view_id;
-    ignoreBid: bwin_id;
-    bwinId: bwin_id;
+    ignoreBid?: bwin_id;
     actionId: number;
-};
+} & (
+    | { type: "close" | "reload" | "stop" | "restart" }
+    | {
+          type: "update";
+          data: cardData;
+      }
+);
 
 export interface cardData {
     url?: string;

@@ -26,7 +26,6 @@ type Message = {
         op: { type: string; allow: boolean }, // todo
     ) => void;
     viewSAdd: (vid: view_id, pid: view_id) => void;
-    viewSUpdate: (vid: view_id, op: cardData) => void;
     viewSMove: (vid: view_id, win: bwin_id) => void;
     addOpensearch: (o: setting["searchEngine"]["engine"]) => void;
     input: (o: {
@@ -60,11 +59,17 @@ const mainOnData = new Map<
 >();
 
 function mainSend<K extends keyof Message>(
-    webContents: Electron.WebContents | undefined,
+    webContents: Electron.WebContents | undefined | Electron.WebContents[],
     key: K,
     data: Parameters<Message[K]>,
 ): void {
-    webContents?.send(name, key, data);
+    if (Array.isArray(webContents)) {
+        for (const wc of webContents) {
+            if (!wc.isDestroyed()) wc.send(name, key, data);
+        }
+    } else {
+        if (webContents && !webContents.isDestroyed()) webContents.send(name, key, data);
+    }
 }
 
 function renderOn<K extends keyof Message>(key: K, callback: (data: Parameters<Message[K]>) => void) {

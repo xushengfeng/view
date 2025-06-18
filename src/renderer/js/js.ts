@@ -650,13 +650,12 @@ function getCardById(id: number) {
     return document.querySelector(`[data-id="${id}"]`) as Card;
 }
 
-function sendAction(a: { type: viewAction["type"]; viewId: view_id }) {
+function sendAction(a: { type: "close" | "reload" | "stop" | "restart"; viewId: view_id }) {
     const action: viewAction = {
         type: a.type,
         viewId: a.viewId,
         ignoreBid: pid,
         actionId: Date.now(),
-        bwinId: pid,
     };
     // ui
     receiveAction(action); // 来自同一页面的操作，立即执行，不通过主进程反射中转
@@ -671,6 +670,9 @@ function receiveAction(action: viewAction) {
             break;
         case "restart":
             cardRestart(action.viewId);
+            break;
+        case "update":
+            cardUpdata(action.viewId, action.data);
             break;
     }
 }
@@ -892,7 +894,6 @@ renderOn("viewAction", ([action]) => {
 });
 
 renderOn("viewSAdd", ([id, pid]) => cardAdd(id, pid));
-renderOn("viewSUpdate", ([id, op]) => cardUpdata(id, op));
 renderOn("viewSMove", ([id, win]) => cardMove(id, win));
 
 renderOn("siteAbout", ([p, url, id]) => {
